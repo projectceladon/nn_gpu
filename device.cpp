@@ -10,6 +10,7 @@
 #include "device.h"
 #include "prepare_model.h"
 #include "executor_manager.h"
+#include "validate.h"
 
 namespace android {
 namespace hardware {
@@ -30,6 +31,12 @@ Return<void> Device::getSupportedOperations(const Model& model,
                                                      getSupportedOperations_cb cb)
 {
     ALOGV("Device::getSupportedOperations");
+    if (!validateModel(model))
+    {
+        std::vector<bool> supported;
+        cb(ErrorStatus::INVALID_ARGUMENT, supported);
+        return Void();
+    }
     std::vector<bool> supported = ExecutorManager::getSupportedOperations(model);
     cb(ErrorStatus::NONE, supported);
     return Void();
@@ -39,6 +46,14 @@ Return<ErrorStatus> Device::prepareModel(const Model& model,
                                                const sp<IPreparedModelCallback>& callback)
 {
     ALOGV("Device::prepareModel");
+    if (callback.get() == nullptr) {
+        LOG(ERROR) << "invalid callback passed to prepareModel";
+        return ErrorStatus::INVALID_ARGUMENT;
+    }
+    if (!validateModel(model)) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+        return ErrorStatus::INVALID_ARGUMENT;
+    }
     sp<PreparedModel> preparedModel = new PreparedModel(model);
     if (!preparedModel->initialize())
     {

@@ -25,6 +25,7 @@ prepare_model.cpp \
 executor_manager.cpp \
 base_executor.cpp \
 gpu_executor.cpp \
+validate.cpp \
 gles/gles_cs_executor.cpp \
 gles/gles_memory_manager.cpp \
 gles/gles_pool_info.cpp \
