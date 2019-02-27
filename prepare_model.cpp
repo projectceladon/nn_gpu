@@ -9,6 +9,7 @@
 
 #include "prepare_model.h"
 #include "executor_manager.h"
+#include "validate.h"
 
 namespace android {
 namespace hardware {
@@ -53,6 +54,10 @@ Return<ErrorStatus> PreparedModel::execute(const Request& request,
     if (callback.get() == nullptr)
     {
         ALOGE("invalid callback passed to execute");
+        return ErrorStatus::INVALID_ARGUMENT;
+    }
+    if (!validateRequest(request, mModel)) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT);
         return ErrorStatus::INVALID_ARGUMENT;
     }
 
