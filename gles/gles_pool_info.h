@@ -27,11 +27,7 @@
 
 #include "base_executor.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 class GlesMemoryInfo;
 
@@ -54,10 +50,6 @@ private:
     std::vector<GlesMemoryInfo*> memInfos;
 };
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif

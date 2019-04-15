@@ -2,11 +2,7 @@
 #include <cutils/properties.h>
 #include "gles_cs_executor.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 #define OUTPUT_SIZE(convParam) \
     (convParam.batch * convParam.outH * convParam.outW * convParam.outC)
@@ -612,7 +608,7 @@ bool chn3ToChn4(ConvParam& convParam,
     prog = progMgr.getProgram(&key);
     if (prog == 0)
     {
-        ALOGV("error: Failed to get program\n");
+        LOGE("error: Failed to get program\n");
         return false;
     }
     glUseProgram(prog);
@@ -624,7 +620,7 @@ bool chn3ToChn4(ConvParam& convParam,
     }
     else
     {
-        ALOGW("glGetProgramResourceLocation(\"num_threads\") returns -1");
+        LOGW("glGetProgramResourceLocation(\"num_threads\") returns -1");
         return false;
     }
 
@@ -654,7 +650,7 @@ bool convolve(ConvParam& convParam,
     prog = progMgr.getProgram(&key);
     if (prog == 0)
     {
-        ALOGE("CONV_2D: failed to get program\n");
+        LOGE("CONV_2D: failed to get program\n");
         return false;
     }
 
@@ -671,11 +667,9 @@ bool convolveTimed(ConvParam& convParam,
                    long& elapsedTime,
                    bool syncPerIter)
 {
+    bool res;
     long t;
-    bool res = true;
-
-    if (iter < 1)
-        return false;
+    
     // warm up run
     if (!convolve(convParam, shaderConfig, progMgr))
         return false;
@@ -924,7 +918,7 @@ bool verifyResult(ConvParam &convParam, float* in_buffer, float* filter_buffer, 
                         !(fabs(benchmark[offset]) < 1.e-3 &&
                         fabs(pOut[offset] - benchmark[offset]) < 1.e-4))
                     {
-                        ALOGE("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n", 
+                        LOGE("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n",
                               b, h, w, c, pOut[offset], benchmark[offset]);
                         delete[] benchmark;
                         return false;
@@ -1016,7 +1010,7 @@ bool tryShaderConfig(ConvParam& convParam,
         progMgr.deleteProgram(name);
         if (ret)
         {
-            ALOGV("CONV_2D: %s: tune: %8.3f ms, %s\n", __func__, 1.0 * elapsedUS / 1000, name.c_str());
+            NN_GPU_PERF("CONV_2D: %s: tune: %8.3f ms, %s\n", __func__, 1.0 * elapsedUS / 1000, name.c_str());
             std::pair<long, int> entry(elapsedUS, i);
             timedConfig.insert(entry);
         }
@@ -1039,7 +1033,7 @@ bool tryShaderConfig(ConvParam& convParam,
         {
             best = cand;
             ret = true;
-            ALOGV("CONV_2D: %s: tune: Best shader config: %.2f ms, %s\n",
+            NN_GPU_PERF("CONV_2D: %s: tune: Best shader config: %.2f ms, %s\n",
                     __func__, 1.0 * it->first / 1000, name.c_str());
             break;
         }
@@ -1086,7 +1080,7 @@ void tune(ConvParam& convParam,
     if (!succeed)
     {
         std::string sig = genConvSignature(convParam);
-        ALOGV("CONV_2D: %s: %s fallback to basic shader, THIS MAY HAVE POOL PERFORMANCE !\n", __func__, sig.c_str());
+        NN_GPU_PERF("CONV_2D: %s: %s fallback to basic shader, THIS MAY HAVE POOR PERFORMANCE !\n", __func__, sig.c_str());
         configs = genShaderConfigCandidates(convParam, CONV_SHADER_TYPE_BASIC);
         succeed = tryShaderConfig(convParam, conf, progMgr, input, filter, bias, output, configs);
     }
@@ -1103,7 +1097,7 @@ bool storeConfig(std::string& signature, ShaderConfig& conf)
     ss << prop_prefix << signature;
     std::string confString = genShaderConfigString(conf);
     ret = property_set(ss.str().c_str(), confString.c_str()) == 0 ? true : false;
-    ALOGV("CONV_2D: %s: store shader config %s: %s, %s\n",
+    NN_GPU_PERF("CONV_2D: %s: store shader config %s: %s, %s\n",
           __func__,
           ret ? "succeed" : "failed",
           ss.str().c_str(), confString.c_str());
@@ -1122,7 +1116,7 @@ bool loadConfig(std::string signature, ShaderConfig& conf)
     {
         found = true;
         string2Config(prop, conf);
-        ALOGV("CONV_2D: %s: %s, %s\n", __func__, ss.str().c_str(), prop);
+        NN_GPU_PERF("CONV_2D: %s: %s, %s\n", __func__, ss.str().c_str(), prop);
     }
     return found;
 }
@@ -1150,7 +1144,7 @@ void prepareShaderConfig(ConvParam& convParam,
         {
             std::pair<std::string, std::string> entry(defaultConfig[2 * i], defaultConfig[2 * i + 1]);
             shaderConfigMap.insert(entry);
-            ALOGV("CONV_2D: %s: load pre-tuned config: %s, %s\n", __func__, defaultConfig[2 * i], defaultConfig[2 * i + 1]);
+            NN_GPU_PERF("CONV_2D: %s: load pre-tuned config: %s, %s\n", __func__, defaultConfig[2 * i], defaultConfig[2 * i + 1]);
         }
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &max_wg_count_x);
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &max_wg_count_y);
@@ -1166,7 +1160,7 @@ void prepareShaderConfig(ConvParam& convParam,
     ShaderConfigMap::iterator it = shaderConfigMap.find(sig);
     if (it != shaderConfigMap.end())
     {
-        ALOGV("CONV_2D: %s: found config %s, %s\n", __func__, sig.c_str(), it->second.c_str());
+        NN_GPU_PERF("CONV_2D: %s: found config %s, %s\n", __func__, sig.c_str(), it->second.c_str());
         string2Config(it->second.c_str(), conf);
         mtx.unlock();
         return;
@@ -1182,7 +1176,7 @@ void prepareShaderConfig(ConvParam& convParam,
 
     std::pair<std::string, std::string> entry(sig, genShaderConfigString(conf));
     shaderConfigMap.insert(entry);
-    ALOGV("CONV_2D: %s: cache config in memory: %s, %s\n", __func__, sig.c_str(), genShaderConfigString(conf).c_str());
+    NN_GPU_PERF("CONV_2D: %s: cache config in memory: %s, %s\n", __func__, sig.c_str(), genShaderConfigString(conf).c_str());
 
     if (tuned)
     {
@@ -1313,8 +1307,4 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
     return true;
 }
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP

@@ -5,11 +5,7 @@
 
 #include "base_executor.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 class ExecutorManager
 {
@@ -23,14 +19,11 @@ private:
     enum ExecutorType
     {
         ET_GLES_CS,
+        ET_VK_CS,
     };
     static ExecutorType type;
 };
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif

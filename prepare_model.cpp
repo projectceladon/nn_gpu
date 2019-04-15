@@ -2,8 +2,6 @@
 #include <memory.h>
 #include <string.h>
 
-#include <android/log.h>
-#include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <thread>
 
@@ -11,21 +9,19 @@
 #include "executor_manager.h"
 #include "validate.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 PreparedModel::PreparedModel(const Model& model)
       : // Make a copy of the model, as we need to preserve it.
         mModel(model)
 {
+    NN_GPU_CALL();
     exec = ExecutorManager::createExecutor(mModel);
 }
 
 bool PreparedModel::initialize()
 {
+    NN_GPU_CALL();
     exec->initPerModel();
     return true;
 }
@@ -33,7 +29,7 @@ bool PreparedModel::initialize()
 void PreparedModel::asyncExecute(const Request& request,
                                        const sp<IExecutionCallback>& callback)
 {
-    ALOGV("PreparedModel::asyncExecute");
+    NN_GPU_CALL();
     exec->initPerExecThread();
     bool succ = exec->run(request);
     exec->deinitPerExecThread();
@@ -50,10 +46,10 @@ void PreparedModel::asyncExecute(const Request& request,
 Return<ErrorStatus> PreparedModel::execute(const Request& request,
                                                  const sp<IExecutionCallback>& callback)
 {
-    ALOGV("PreparedModel::execute");
+    NN_GPU_CALL();
     if (callback.get() == nullptr)
     {
-        ALOGE("invalid callback passed to execute");
+        LOGE("invalid callback passed to execute");
         return ErrorStatus::INVALID_ARGUMENT;
     }
     if (!validateRequest(request, mModel)) {
@@ -68,12 +64,9 @@ Return<ErrorStatus> PreparedModel::execute(const Request& request,
 
 PreparedModel::~PreparedModel()
 {
+    NN_GPU_CALL();
     for (auto& th : execThreads) th.join();
     exec->deinitPerModel();
 }
 
-}// namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP

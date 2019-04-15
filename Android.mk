@@ -26,37 +26,58 @@ executor_manager.cpp \
 base_executor.cpp \
 gpu_executor.cpp \
 validate.cpp \
+vulkan/vk_cs_executor.cpp \
+vulkan/vk_memory_manager.cpp \
+vulkan/vk_pool_info.cpp \
+vulkan/vk_memory_info.cpp \
+vulkan/vk_operand.cpp \
+vulkan/vk_buffer.cpp \
+vulkan/vk_cs_executor_elewise.cpp \
+vulkan/vk_cs_executor_conv.cpp \
+vulkan/vk_cs_executor_concat.cpp \
+vulkan/vk_cs_executor_softmax.cpp \
+vulkan/vk_cs_executor_pool.cpp \
+vulkan/vk_cs_executor_lrn.cpp \
+vulkan/vk_op_base.cpp \
+vulkan/vk_wrapper.cpp \
+vulkan/shader/elewise_spv.cpp \
+vulkan/shader/conv_spv.cpp \
+vulkan/shader/concat_spv.cpp \
+vulkan/shader/softmax_spv.cpp \
+vulkan/shader/avg_pool_spv.cpp \
+vulkan/shader/max_pool_spv.cpp \
+vulkan/shader/lrn_spv.cpp \
 gles/gles_cs_executor.cpp \
-gles/gles_memory_manager.cpp \
-gles/gles_pool_info.cpp \
-gles/gles_memory_info.cpp \
-gles/gles_operand.cpp \
-gles/gles_cs_program_manager.cpp \
 gles/gles_cs_executor_add.cpp \
-gles/gles_cs_program_add.cpp \
-gles/gles_cs_executor_conv.cpp \
-gles/gles_cs_program_conv.cpp \
-gles/gles_cs_executor_logistic.cpp \
-gles/gles_cs_program_logistic.cpp \
-gles/gles_cs_executor_mul.cpp \
-gles/gles_cs_program_mul.cpp \
-gles/gles_cs_executor_depth_conv.cpp \
-gles/gles_cs_program_depth_conv.cpp \
 gles/gles_cs_executor_avg_pool.cpp \
-gles/gles_cs_program_avg_pool.cpp \
-gles/gles_cs_executor_softmax.cpp \
-gles/gles_cs_program_softmax.cpp \
-gles/gles_cs_executor_reshape.cpp \
-gles/gles_cs_program_reshape.cpp \
 gles/gles_cs_executor_concat.cpp \
-gles/gles_cs_program_concat.cpp \
-gles/gles_cs_executor_lrn.cpp \
-gles/gles_cs_program_lrn.cpp \
+gles/gles_cs_executor_conv.cpp \
+gles/gles_cs_executor_depth_conv.cpp \
+gles/gles_cs_executor_logistic.cpp \
+gles/gles_cs_executor_lrn.cpp  \
 gles/gles_cs_executor_max_pool.cpp \
-gles/gles_cs_program_max_pool.cpp 
+gles/gles_cs_executor_mul.cpp \
+gles/gles_cs_executor_reshape.cpp \
+gles/gles_cs_executor_softmax.cpp \
+gles/gles_cs_program_add.cpp \
+gles/gles_cs_program_avg_pool.cpp \
+gles/gles_cs_program_concat.cpp \
+gles/gles_cs_program_conv.cpp \
+gles/gles_cs_program_depth_conv.cpp \
+gles/gles_cs_program_logistic.cpp \
+gles/gles_cs_program_lrn.cpp \
+gles/gles_cs_program_manager.cpp \
+gles/gles_cs_program_max_pool.cpp \
+gles/gles_cs_program_mul.cpp \
+gles/gles_cs_program_reshape.cpp \
+gles/gles_cs_program_softmax.cpp \
+gles/gles_memory_info.cpp \
+gles/gles_memory_manager.cpp \
+gles/gles_operand.cpp \
+gles/gles_pool_info.cpp
 
 LOCAL_CFLAGS += \
--DLOG_TAG=\"NNGPUHAL\" \
+-DLOG_TAG=\"NN_GPU_HAL\" \
 -DLOG_NDEBUG=0
 
 ifeq ($(TARGET_PRODUCT), gordon_peak)
@@ -66,6 +87,8 @@ endif
 ifeq ($(TARGET_PRODUCT), icl_presi_kbl)
 LOCAL_CFLAGS += -DTARGET_KBL
 endif
+
+LOCAL_C_INCLUDES := frameworks/native/vulkan/include
 
 LOCAL_SHARED_LIBRARIES := \
 libbase \

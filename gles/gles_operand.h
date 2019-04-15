@@ -8,11 +8,7 @@
 
 #include "base_executor.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 class GlesMemoryManager;
 class GlesPoolInfo;
@@ -50,7 +46,7 @@ public:
     {
         if (idx >= dimensions.size())
         {
-            ALOGW("Invalid dimension idx: %d\n", idx);
+            LOGW("Invalid dimension idx: %d\n", idx);
             return 0;
         }
         return dimensions[idx];
@@ -87,10 +83,6 @@ private:
     uint32_t operandIndex;
 };
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif

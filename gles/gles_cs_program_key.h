@@ -3,11 +3,7 @@
 
 #include "base_executor.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 // should be the same as defined in types.hal
 enum FusedActivationFunctionType { kNone, kRelu, kRelu1, kRelu6 };
@@ -136,10 +132,6 @@ struct GlesCsProgramKeyMul : GlesCsProgramKeyBasic
     bool broadcast;
 };
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif

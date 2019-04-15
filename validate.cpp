@@ -2,8 +2,6 @@
 #include <memory.h>
 #include <string.h>
 
-#include <android/log.h>
-#include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <thread>
 
@@ -12,11 +10,7 @@
 #include "executor_manager.h"
 #include "validate.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 const char* kOperationNames[kNumberOfOperationTypes] = {
         "ADD",
@@ -69,7 +63,7 @@ EntryType tableLookup(const EntryType (&table)[entryCount],
     } else if (code >= kOEMCodeBase && (code - kOEMCodeBase) < entryCountOEM) {
         return tableOEM[code - kOEMCodeBase];
     } else {
-        nnAssert(!"tableLookup: bad code");
+        ASSERT(!"tableLookup: bad code");
         return EntryType();
     }
 }
@@ -1685,8 +1679,4 @@ bool validateRequest(const Request& request, const Model& model)
             validatePools(request.pools));
 }
 
-}// namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP

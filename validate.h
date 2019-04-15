@@ -3,11 +3,7 @@
 
 #include "hal_types.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 typedef int32_t ANeuralNetworksOperationType;
 
@@ -42,16 +38,6 @@ const int kNumberOfDataTypesOEM = 2;
 
 // The number of operation types (OperationCode) defined in NeuralNetworksOEM.h.
 const int kNumberOfOperationTypesOEM = 1;
-
-// Assert macro, as Android does not generally support assert.
-#define nnAssert(v)                                                                            \
-    do {                                                                                       \
-        if (!(v)) {                                                                            \
-            LOG(ERROR) << "nnAssert failed at " << __FILE__ << ":" << __LINE__ << " - '" << #v \
-                       << "'\n";                                                               \
-            abort();                                                                           \
-        }                                                                                      \
-    } while (0)
 
 class MemoryAccessVerifier {
 public:
@@ -96,10 +82,6 @@ bool validateModel(const Model& model);
 // Each driver should do their own validation of OEM types.
 bool validateRequest(const Request& request, const Model& model);
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif

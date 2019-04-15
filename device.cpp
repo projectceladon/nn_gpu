@@ -2,8 +2,6 @@
 #include <memory.h>
 #include <string.h>
 
-#include <android/log.h>
-#include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <thread>
 
@@ -12,48 +10,48 @@
 #include "executor_manager.h"
 #include "validate.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 Return<void> Device::getCapabilities(getCapabilities_cb cb)
 {
-    ALOGV("Device::getCapabilities");
+    NN_GPU_ENTRY();
     Capabilities capabilities;
     ExecutorManager::getCapabilities(capabilities);
     cb(ErrorStatus::NONE, capabilities);
+    NN_GPU_EXIT();
     return Void();
 }
 
 Return<void> Device::getSupportedOperations(const Model& model,
                                                      getSupportedOperations_cb cb)
 {
-    ALOGV("Device::getSupportedOperations");
+    NN_GPU_ENTRY();
     if (!validateModel(model))
     {
         std::vector<bool> supported;
         cb(ErrorStatus::INVALID_ARGUMENT, supported);
         return Void();
     }
+
     std::vector<bool> supported = ExecutorManager::getSupportedOperations(model);
     cb(ErrorStatus::NONE, supported);
+    NN_GPU_EXIT();
     return Void();
 }
 
 Return<ErrorStatus> Device::prepareModel(const Model& model,
                                                const sp<IPreparedModelCallback>& callback)
 {
-    ALOGV("Device::prepareModel");
+    NN_GPU_ENTRY();
     if (callback.get() == nullptr) {
-        LOG(ERROR) << "invalid callback passed to prepareModel";
+        LOGE("invalid callback passed to prepareModel");
         return ErrorStatus::INVALID_ARGUMENT;
     }
     if (!validateModel(model)) {
         callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
         return ErrorStatus::INVALID_ARGUMENT;
     }
+
     sp<PreparedModel> preparedModel = new PreparedModel(model);
     if (!preparedModel->initialize())
     {
@@ -61,39 +59,38 @@ Return<ErrorStatus> Device::prepareModel(const Model& model,
        return ErrorStatus::INVALID_ARGUMENT;
     }
     callback->notify(ErrorStatus::NONE, preparedModel);
+
+    NN_GPU_EXIT();
     return ErrorStatus::NONE;
 }
 
 Return<DeviceStatus> Device::getStatus()
 {
-    ALOGV("Device::getStatus");
+    NN_GPU_CALL();
     return DeviceStatus::AVAILABLE;
 }
 
 int Device::run()
 {
-    ALOGV("Device::run");
+    NN_GPU_CALL();
     if (!ExecutorManager::initPerProcess())
     {
-        ALOGE("Unable to do ExecutorManager::initPerProcess, service exited!");
+        LOGE("Unable to do ExecutorManager::initPerProcess, service exited!");
         return 1;
     }
 
     android::hardware::configureRpcThreadpool(4, true);
     if (registerAsService(mName) != android::OK)
     {
-        ALOGE("Could not register service");
+        LOGE("Could not register service");
         return 1;
     }
     android::hardware::joinRpcThreadpool();
 
-    ALOGE("Service exited!");
+    LOGE("Service exited!");
     ExecutorManager::deinitPerProcess();
+
     return 1;
 }
 
-}// namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP

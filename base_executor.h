@@ -25,49 +25,19 @@
 #include <string.h>
 
 #include <utils/RefBase.h>
-#include <android/log.h>
-#include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <thread>
 
 #include "hal_types.h"
 
-namespace android {
-namespace hardware {
-namespace neuralnetworks {
-namespace V1_0 {
-namespace implementation {
+NAME_SPACE_BEGIN
 
 #define UNUSED(x) (void)(x);
-
-#define ASSERT(v)                                                               \
-    do                                                                          \
-    {                                                                           \
-        if (!(v))                                                               \
-        {                                                                       \
-            ALOGE("ASSERT failed at %s:%d - %s", __FILE__, __LINE__, #v);       \
-            abort();                                                            \
-        }                                                                       \
-    } while(0)
 
 #define NOT_REACH_HERE ASSERT(!"should not reach here");
 #define NOT_IMPLEMENTED ASSERT(!"not implemented");
 
 #define ALIGN(size_, align) (((size_) + (align) - 1) / (align) * (align))
-// Macro to check if the input parameters for operation are valid or not.
-#define NN_CHECK(v)                                                     \
-  do {                                                                  \
-    if (!(v)) {                                                         \
-      LOG(ERROR) << "NN_CHECK failed: "  << #v << ", " << __FILE__ << ":" << __LINE__ << "\n";                \
-      return false;                                                     \
-    }                                                                   \
-  } while(0);
-
-#define NN_CHECK_EQ(actual, expected)           \
-  NN_CHECK((actual) == (expected))
-
-#define NN_OPS_CHECK NN_CHECK
-
 
 inline size_t getSizeFromInts(int lower, int higher) {
     return (uint32_t)(lower) + ((uint64_t)(uint32_t)(higher) << 32);
@@ -88,15 +58,11 @@ public:
     virtual void deinitPerExecThread() { NOT_REACH_HERE; }
 
     virtual bool run(const Request& request) { NOT_REACH_HERE; UNUSED(request); return true;}
-    static std::string getOpName(const Operation& op);
+    virtual std::string getOpName(const Operation& op);
 protected:
     const Model& model;
 };
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace neuralnetworks
-}  // namespace hardware
-}  // namespace android
+NAME_SPACE_STOP
 
 #endif
