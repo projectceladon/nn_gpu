@@ -27,7 +27,7 @@ extern const unsigned int concat_spv[541];
 extern const unsigned int softmax_spv[1496];
 extern const unsigned int avg_pool_spv[1538];
 extern const unsigned int max_pool_spv[1449];
-extern const unsigned int lrn_spv[1845];
+extern const unsigned int lrn_spv[1655];
 
 NAME_SPACE_STOP
 
