@@ -1,94 +1,96 @@
 #version 450
-layout (constant_id = 0) const int LOCAL_SZ_X = 0;
-layout (constant_id = 1) const int LOCAL_SZ_Y = 0;
-layout (constant_id = 2) const int LOCAL_SZ_Z = 0;
-layout (constant_id = 3) const int IN_H = 0;
-layout (constant_id = 4) const int IN_W = 0;
-layout (constant_id = 5) const int OUT_H = 0;
-layout (constant_id = 6) const int OUT_W = 0;
-layout (constant_id = 7) const int STRIDE_H = 0;
-layout (constant_id = 8) const int STRIDE_W = 0;
-layout (constant_id = 9) const int DILATION_H = 0;
-layout (constant_id = 10) const int DILATION_W = 0;
-layout (constant_id = 11) const int PAD_H = 0;
-layout (constant_id = 12) const int PAD_W = 0;
-layout (constant_id = 13) const int FILTER_H = 0;
-layout (constant_id = 14) const int FILTER_W = 0;
-layout (constant_id = 15) const int CHANNELS = 0;
-layout (constant_id = 16) const int BATCH = 0;
-layout (constant_id = 17) const int HAS_BIAS = 0;
-layout (constant_id = 18) const int M = 0;
-layout (constant_id = 19) const int K = 0;
-layout (constant_id = 20) const int N = 0;
-layout (constant_id = 21) const int TAIL_M = 0;
-layout (constant_id = 22) const int DEPTH_MULTIPLIER = 0;
-layout (constant_id = 23) const int ACTIVATION = 0;
-
-#define ACTIVATION_FUNCTION(x)  \
-     { \
-     if (ACTIVATION == 1) \
-       x = max(x, 0.0);    \
-     else if (ACTIVATION == 2)  \
-       x = clamp(x, -1.0, 1.0); \
-     else if (ACTIVATION == 3)  \
-       x = clamp(x, 0.0, 6.0);  \
-     }
-
+#define LOCAL_SZ_X 256
 layout(push_constant) uniform pushBlock {
-    int basic_shader_batch_idx;
-    int basic_shader_partition_idx;
-    int basic_shader_partition_size;
+    int IN_H;
+    int IN_W;
+    int OUT_H;
+    int OUT_W;
+    int STRIDE_H;
+    int STRIDE_W;
+    int DILATION_H;
+    int DILATION_W;
+    int PAD_H;
+    int PAD_W;
+    int FILTER_H;
+    int FILTER_W;
+    int CHANNELS;
+    int BATCH;
+    int HAS_BIAS;
+    int M;
+    int K;
+    int N;
+    int TAIL_M;
+    int DEPTH_MULTIPLIER;
+    int ACTIVATION;
+    int BASIC_SHADER_BATCH_IDX;
+    int BASIC_SHADER_PARTITION_IDX;
+    int BASIC_SHADER_PARTITION_SIZE;
 } p;
+
+#define ACTIVATION_FUNCTION(x)   \
+{                                \
+    if (ACTIVATION == 1)         \
+      x = max(x, 0.0);           \
+    else if (ACTIVATION == 2)    \
+      x = clamp(x, -1.0, 1.0);   \
+    else if (ACTIVATION == 3)    \
+      x = clamp(x, 0.0, 6.0);    \
+}
 
 layout(binding = 0) readonly buffer Input0{
     float image_data[];
 };
-layout(binding = 1) readonly buffer Input1 {
-    float bias_data[];
-};
-layout(binding = 2) readonly buffer Input3{
+layout(binding = 1) readonly buffer Input1{
     float weight_data[];
+};
+layout(binding = 2) readonly buffer Input2 {
+    float bias_data[];
 };
 layout(binding = 3) writeonly buffer Output{
     float convolved_image_data[];
 };
 
-layout(local_size_x_id = 0, local_size_y_id = 1, local_size_z_id = 2) in;
+// todo: should be passed from configuration ...
+layout(local_size_x = 1, local_size_y = 16, local_size_z = 1) in;
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y) + p.basic_shader_partition_idx * p.basic_shader_partition_size;
-    int gz = p.basic_shader_batch_idx;
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
 
-    if(gx < M && gy < N)
+    if (gx < p.M && gy < p.N && gz < p.BATCH)
     {
         float sum = 0.0f;
-        int output_y = gx / OUT_W;
-        int output_x = gx % OUT_W;
-        int org_y = output_y * STRIDE_H - PAD_H;
-        int org_x = output_x * STRIDE_W - PAD_W;
-        int weight_off = gy * K;
-        int input_off = gz * IN_H * IN_W * CHANNELS + (org_y * IN_W + org_x);
-        for(int c = 0; c < CHANNELS; c++)
+        int output_y = gy / p.OUT_W;
+        int output_x = gy % p.OUT_W;
+        int org_y = output_y * p.STRIDE_H - p.PAD_H;
+        int org_x = output_x * p.STRIDE_W - p.PAD_W;
+        int weight_off = gx * p.K;
+        // int input_off = gz * p.IN_H * IN_W * CHANNELS + (org_y * IN_W + org_x);
+        int image_offset  = gz * p.IN_H * p.IN_W * p.CHANNELS;
+        int output_offset = gz * p.M * p.N;
+        int input_off = image_offset + (org_y * p.IN_W + org_x) * p.CHANNELS;
+
+        for (int y = 0; y < p.FILTER_H; y++)
         {
-            for(int y = 0; y < FILTER_H; y++)
+            for (int x = 0; y < p.FILTER_W; x++)
             {
-                for(int x = 0; x < FILTER_W; x++)
+                if (org_y + y >= 0 && org_y + y < p.IN_H && org_x + x >= 0 && org_x + x < p.IN_W)
                 {
-                    if((org_y + y * DILATION_H >= 0) && (org_y + y * DILATION_H < IN_H) && (org_x + x * DILATION_W >= 0) && (org_x + x * DILATION_W < IN_W))
+                    for(int c = 0; c < p.CHANNELS; c++)
                     {
-                        sum += image_data[input_off + x * DILATION_W] * weight_data[weight_off + x];
+                       sum += image_data[input_off + c] * weight_data[weight_off + c];
                     }
                 }
-                input_off += IN_W * DILATION_H;
-                weight_off += FILTER_W;
+                input_off += p.CHANNELS;
+                weight_off += p.CHANNELS;
             }
-            input_off += IN_H * IN_W - IN_W * FILTER_H * DILATION_H;
+            input_off += p.IN_W * p.CHANNELS - p.CHANNELS * p.FILTER_W;
         }
-        int offset = gz * M * N + gx  + gy * M;
-        if (HAS_BIAS == 1)
-            sum += bias_data[gy];
-        ACTIVATION_FUNCTION(sum);
-        convolved_image_data[offset] = sum;
+
+        int offset = output_offset + gy * p.N + gx;
+        // todo: add activation
+        convolved_image_data[offset] = sum + bias_data[gx];
     }
 }

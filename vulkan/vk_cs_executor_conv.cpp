@@ -35,7 +35,18 @@ NAME_SPACE_BEGIN
 #define MAX_GROUP_COUNT_Z 65535
 #define LOCAL_SZ_X 256
 
+#define DEFAULT_DILATION_H 1
+#define DEFAULT_DILATION_W 1
+#define HAS_BIAS 1
+
 struct SpecializationConst {
+public:
+    SpecializationConst(int ih, int iw, int oh, int ow, int dh, int dw, int fh, int fw, int chn,
+                        int bat, int bias, int M, int K, int N, int tm, int dm):
+        in_h(ih), in_w(iw), out_h(oh), out_w(ow), dilation_h(dh), dilation_w(dw), filter_h(fh), filter_w(fw),
+        channels(chn), batch(bat), has_bias(bias), m(M), k(K), n(N), tail_m(tm), depth_multiplier(dm)
+    {};
+
     int lsz_x;
     int lsz_y;
     int lsz_z;
@@ -60,9 +71,6 @@ struct SpecializationConst {
     int tail_m;
     int depth_multiplier;
     int activation;
-};
-
-struct PushConst {
     int basic_shader_batch_idx;
     int basic_shader_partition_idx;
     int basic_shader_partition_size;
@@ -105,22 +113,21 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     const size_t inCount = ins.size();
     ASSERT(inCount == 10 || inCount == 7);
 
-    VkOperand& in  = operands[ins[0]];
+    VkOperand& in     = operands[ins[0]];
     VkOperand& filter = operands[ins[1]];
     VkOperand& bias   = operands[ins[2]];
-    VkOperand& out = operands[outs[0]];
+    VkOperand& out    = operands[outs[0]];
 
-	Shape in_shape = in.getShape();
-	Shape out_shape = out.getShape();
-	Shape filter_shape = filter.getShape();
-	Shape bias_shape = bias.getShape();
+    Shape in_shape     = in.getShape();
+    Shape out_shape    = out.getShape();
+    Shape filter_shape = filter.getShape();
+    Shape bias_shape   = bias.getShape();
 
     int M = out_shape[kShapeIdxHeight] * out_shape[kShapeIdxWidth];
     int N = out_shape[kShapeIdxChannel];
     int K = in_shape[kShapeIdxChannel] * filter_shape[kShapeIdxHeight] * filter_shape[kShapeIdxWidth];
 
-	uint32_t out_channel = out_shape[kShapeIdxChannel];
-	PaddingScheme padding_mode;
+    PaddingScheme padding_mode;
 
 #if 0
 	uint32_t reshape_out_h, reshape_out_w;
@@ -134,55 +141,49 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 	//out.reshape(NULL, shape);
 #endif
 
-	if (opBase->pipeline == VK_NULL_HANDLE)
-	{
-        // specialization constants
-        VkSpecializationInfo spec_info;
-        SpecializationConst spec_const;
-        VkSpecializationMapEntry entry[SPECIALIZATION_CONST_NUM];
+    // specialization constants
+    SpecializationConst spec_const(in_shape[kShapeIdxHeight], in_shape[kShapeIdxWidth],
+                                   out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth],
+                                   DEFAULT_DILATION_H, DEFAULT_DILATION_W,
+                                   filter_shape[kShapeIdxHeight], filter_shape[kShapeIdxWidth],
+                                   in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], HAS_BIAS, M, K, N, M % 4,
+                                   DEFAULT_DEPTH_MULTIPLIER);
 
-        spec_const.lsz_x = config.local_size_x;
-        spec_const.lsz_y = config.local_size_y;
-        spec_const.lsz_z = config.local_size_z;
-        spec_const.in_h  = in_shape[kShapeIdxHeight];
-        spec_const.in_w  = in_shape[kShapeIdxWidth];
-        spec_const.out_h = out_shape[kShapeIdxHeight];
-        spec_const.out_w = out_shape[kShapeIdxWidth];
-        spec_const.dilation_h = 1;
-        spec_const.dilation_w = 1;
-        spec_const.filter_h = filter_shape[kShapeIdxHeight];
-        spec_const.filter_w = filter_shape[kShapeIdxWidth];
-        spec_const.channels = in_shape[kShapeIdxChannel];
-        spec_const.batch = in_shape[kShapeIdxBatch];
-        spec_const.has_bias = 1;
-        spec_const.m = M;
-        spec_const.k = K;
-        spec_const.n = N;
-        spec_const.tail_m = M % 4;
-        spec_const.depth_multiplier = DEFAULT_DEPTH_MULTIPLIER;
-
-        if (inCount == 10) {
+    if (opBase->pipeline == VK_NULL_HANDLE)
+    {
+        if (inCount == 10)
+        {
             uint32_t padding_left   = operands[ins[3]].getScalarData<uint32_t>();
             uint32_t padding_right  = operands[ins[4]].getScalarData<uint32_t>();
             uint32_t padding_top    = operands[ins[5]].getScalarData<uint32_t>();
             uint32_t padding_bottom = operands[ins[6]].getScalarData<uint32_t>();
-            spec_const.pad_w        = padding_left + padding_right;
-            spec_const.pad_h        = padding_top + padding_bottom;
+
+            spec_const.pad_w        = padding_left - padding_right;
+            spec_const.pad_h        = padding_top - padding_bottom;
             spec_const.stride_w     = operands[ins[7]].getScalarData<uint32_t>();
             spec_const.stride_h     = operands[ins[8]].getScalarData<uint32_t>();
-            //it is not used in compute shader, only support case of activtion as 0
             spec_const.activation   = operands[ins[9]].getScalarData<uint32_t>();
-            assert(spec_const.activation == 0);
+
+            assert(spec_const.activation == 0);  // TODO: add activation
+
             if (padding_left == 0 && padding_top == 0)
+            {
                 padding_mode = kPaddingValid;
+            }
             else
+            {
                 padding_mode = kPaddingSame;
-        } else {
-            padding_mode = static_cast<PaddingScheme>(operands[ins[3]].getScalarData<uint32_t>());
+            }
+        }
+       else
+       {
+            padding_mode            = static_cast<PaddingScheme>(operands[ins[3]].getScalarData<uint32_t>());
             spec_const.stride_w     = operands[ins[4]].getScalarData<uint32_t>();
             spec_const.stride_h     = operands[ins[5]].getScalarData<uint32_t>();
             spec_const.activation   = operands[ins[6]].getScalarData<uint32_t>();
+
             assert(spec_const.activation == 0);
+
             calculateExplicitPadding(spec_const.in_w, spec_const.stride_w,
                                      spec_const.filter_w, padding_mode,
                                      &spec_const.pad_w);
@@ -191,67 +192,39 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
                                      &spec_const.pad_h);
         }
 
-        SET_SPEC_CONST_ENTRY(entry[0], 0, offsetof(SpecializationConst,lsz_x), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[1], 1, offsetof(SpecializationConst,lsz_y), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[2], 2, offsetof(SpecializationConst,lsz_z), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[3], 3, offsetof(SpecializationConst,in_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[4], 4, offsetof(SpecializationConst,in_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[5], 5, offsetof(SpecializationConst,out_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[6], 6, offsetof(SpecializationConst,out_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[7], 7, offsetof(SpecializationConst,stride_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[8], 8, offsetof(SpecializationConst,stride_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[9], 9, offsetof(SpecializationConst,dilation_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[10], 10, offsetof(SpecializationConst,dilation_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[11], 11, offsetof(SpecializationConst,pad_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[12], 12, offsetof(SpecializationConst,pad_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[13], 13, offsetof(SpecializationConst,filter_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[14], 14, offsetof(SpecializationConst,filter_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[15], 15, offsetof(SpecializationConst,channels), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[16], 16, offsetof(SpecializationConst,batch), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(SpecializationConst,has_bias), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(SpecializationConst,m), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[19], 19, offsetof(SpecializationConst,k), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[20], 20, offsetof(SpecializationConst,n), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[21], 21, offsetof(SpecializationConst,tail_m), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[22], 22, offsetof(SpecializationConst,depth_multiplier), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[23], 23, offsetof(SpecializationConst,activation), sizeof(int));
-        spec_info.mapEntryCount = SPECIALIZATION_CONST_NUM;
-        spec_info.pMapEntries   = entry;
-        spec_info.dataSize      = sizeof(spec_const);
-        spec_info.pData         = &spec_const;
+        NN_GPU_DEBUG("run createShaderModule");
+        opBase->createShaderModule(conv_spv, sizeof(conv_spv));
 
-		opBase->createShaderModule(conv_spv, sizeof(conv_spv));
-		opBase->createPipeline(sizeof(PushConst), &spec_info);
-	}
+        NN_GPU_DEBUG("run createPipeline");
+        opBase->createPipeline(sizeof(SpecializationConst));
+    }
 
-    opBase->group_x = alignSize(M, config.local_size_x) / config.local_size_x;
-    float GFLOPS = (2.0 * K + 1) * M * N / 1000 / 1000 / 1000;
-    assert(config.local_size_y == 1);
-    opBase->group_y = std::min(MAX_GROUP_COUNT_Y, (int)floor(MAX_COMPUTE_GFLOPS / (GFLOPS / out_channel)));
-    opBase->group_z = 1;
+    opBase->group_x = alignSize(alignSize(N, config.block_width) / config.block_width, config.local_size_x) / config.local_size_x;
+    opBase->group_y = alignSize(alignSize(M, config.block_height) / config.block_height, config.local_size_y) / config.local_size_y;
+    opBase->group_z = alignSize(alignSize(spec_const.batch, config.block_depth), config.local_size_z) / config.local_size_z;
 
-	opBase->bindOperand(in, 0, opBase->descriptor_set);
-	opBase->bindOperand(bias, 1, opBase->descriptor_set);
-	opBase->bindOperand(filter, 2, opBase->descriptor_set);
-	opBase->bindOperand(out, 3, opBase->descriptor_set);
+    NN_GPU_DEBUG("bind operands");
+    opBase->bindOperand(in, 0, opBase->descriptor_set);
+    opBase->bindOperand(filter, 1, opBase->descriptor_set);
+    opBase->bindOperand(bias, 2, opBase->descriptor_set);
+    opBase->bindOperand(out, 3, opBase->descriptor_set);
 
-    PushConst param;
     int partition_num = 1;
-    param.basic_shader_partition_size = opBase->group_y;
-    partition_num = (int)ceil(1.0 * out_channel / opBase->group_y);
+    spec_const.basic_shader_partition_size = opBase->group_y;
+    partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
     for (uint32_t b = 0;  b < in_shape[kShapeIdxBatch]; b++)
     {
-        param.basic_shader_batch_idx = b;
+        spec_const.basic_shader_batch_idx = b;
         for (int n = 0;  n < partition_num; n++)
         {
-            param.basic_shader_partition_idx = n;
-            opBase->recordCommandBuffer((void *)&param, sizeof(PushConst));
+            spec_const.basic_shader_partition_idx = n;
+            opBase->recordCommandBuffer((void *)&spec_const, sizeof(SpecializationConst));
             opBase->runCommandBuffer();
         }
     }
 
-	return true;
+    return true;
 }
 
 // FIXME:
@@ -261,7 +234,10 @@ bool VkCsExecutor::doCONV_2D(const Operation& operation)
 {
     ASSERT(operation.type == OperationType::CONV_2D);
 
-    ShaderConfig config = {DEFAULT_LOCAL_SZ, 1, 1, 1, 1, 1};
+#define BUFFER_NUM 2
+    opBase->initVulkanThing(BUFFER_NUM);
+
+    ShaderConfig config = {1, 16, 1, 1, 1, 1};
     prepareConfig(operation, config);
     return convolve(operation, config);
 }
