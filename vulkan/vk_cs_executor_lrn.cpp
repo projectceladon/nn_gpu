@@ -71,25 +71,26 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
     VkOperand& bias     = operands[ins[2]];
     VkOperand& alpha    = operands[ins[3]];
     VkOperand& beta     = operands[ins[4]];
-    VkOperand& out      = operands[outs[5]];
+    VkOperand& out      = operands[outs[1]];
 
-    Shape in_shape = in.getShape();
+    Shape in_shape  = in.getShape();
     Shape out_shape = out.getShape();
 
     LRNParam param;
-    param.thread_num = in_shape[kShapeIdxHeight] * in_shape[kShapeIdxWidth] * in_shape[kShapeIdxBatch];
-    param.channels = in_shape[kShapeIdxChannel];
-    param.height = in_shape[kShapeIdxHeight];
-    param.width = in_shape[kShapeIdxWidth];
-    param.radius = static_cast<PaddingScheme>(radius.getScalarData<int32_t>());
-    param.filter_len = param.radius * 2 + 1;
+    param.thread_num    = in_shape[kShapeIdxHeight] * in_shape[kShapeIdxWidth] * in_shape[kShapeIdxBatch];
+    param.channels      = in_shape[kShapeIdxChannel];
+    param.height        = in_shape[kShapeIdxHeight];
+    param.width         = in_shape[kShapeIdxWidth];
+    param.radius        = static_cast<PaddingScheme>(radius.getScalarData<int32_t>());
+    param.filter_len    = param.radius * 2 + 1;
     //todo: do we need normalize alpha value with filter_len?
-    param.alpha = alpha.getScalarData<float>();
-    param.bias = bias.getScalarData<float>();
-    param.negative_beta =  -1.0 * beta.getScalarData<float>();
+    param.alpha         = alpha.getScalarData<float>();
+    param.bias          = bias.getScalarData<float>();
+    param.negative_beta = -1.0 * beta.getScalarData<float>();
+
     NN_GPU_DEBUG("param thread_num %d, channels %d, height %d, width %d, filter_len %d, radius %d, alpha %f, bias %f, negative_beta %f",
-        param.thread_num, param.channels, param.height, param.width,
-        param.filter_len, param.radius, param.alpha, param.bias, param.negative_beta);
+    param.thread_num, param.channels, param.height, param.width,
+    param.filter_len, param.radius, param.alpha, param.bias, param.negative_beta);
 
     if (opBase->pipeline == VK_NULL_HANDLE)
     {
@@ -101,8 +102,8 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
     }
 
     NN_GPU_DEBUG("bind operands");
-	opBase->bindOperand(in, 0, opBase->descriptor_set);
-	opBase->bindOperand(out, 1, opBase->descriptor_set);
+    opBase->bindOperand(in, 0, opBase->descriptor_set);
+    opBase->bindOperand(out, 1, opBase->descriptor_set);
 
     NN_GPU_DEBUG("run recordCommandBuffer");
     opBase->recordCommandBuffer((void *)&param, sizeof(LRNParam));
@@ -112,7 +113,7 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
 
     NN_GPU_EXIT();
 
-	return true;
+    return true;
 }
 
 NAME_SPACE_STOP

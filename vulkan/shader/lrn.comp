@@ -28,34 +28,32 @@ void main()
     int x = index % p.width;
     int y = (index / p.width) % p.height;
     int b = index / (p.width * p.height);
-    int offset = b * p.channels * p.height * p.width + y * p.width + x;
-    int channel_off = p.height * p.width;
+    int offset = b * p.channels * p.height * p.width + p.channels * y * p.width + p.channels * x;
     float scale_val;
     int head = 0;
     float accum_scale = 0.0f;
     int min_val = p.radius < p.channels ? p.radius : p.channels;
     while (head < min_val) {
-      accum_scale += in_buffer[offset + head * channel_off] * in_buffer[offset + head * channel_off];
+      accum_scale += in_buffer[offset + head] * in_buffer[offset + head];
       ++head;
     }
     while (head < p.channels) {
-      accum_scale += in_buffer[offset + head * channel_off] * in_buffer[offset + head * channel_off];
+      accum_scale += in_buffer[offset + head] * in_buffer[offset + head];
       if (head - p.filter_len >= 0) {
-        accum_scale -= in_buffer[offset + (head - p.filter_len) * channel_off]
-            * in_buffer[offset + (head - p.filter_len) * channel_off];
+        accum_scale -= in_buffer[offset + (head - p.filter_len)] * in_buffer[offset + (head - p.filter_len)];
       }
       scale_val = p.bias + accum_scale * p.alpha;
-      dst_buffer[offset + (head - p.radius) * channel_off] = in_buffer[offset + (head - p.radius) * channel_off] * pow(scale_val, p.negative_beta);
+      dst_buffer[offset + (head - p.radius)] = in_buffer[offset + (head - p.radius)] * pow(scale_val, p.negative_beta);
       ++head;
     }
     int pos = head - min_val;
     while (pos >= 0 && pos < p.channels) {
       if (head - p.filter_len >= 0) {
-        accum_scale -= in_buffer[offset + (head - p.filter_len) * channel_off]
-            * in_buffer[offset + (head - p.filter_len) * channel_off];
+        accum_scale -= in_buffer[offset + (head - p.filter_len)]
+            * in_buffer[offset + (head - p.filter_len)];
       }
       scale_val = p.bias + accum_scale * p.alpha;
-      dst_buffer[offset + pos * channel_off] = in_buffer[offset + pos * channel_off] * pow(scale_val, p.negative_beta);
+      dst_buffer[offset + pos] = in_buffer[offset + pos] * pow(scale_val, p.negative_beta);
       ++head;
       ++pos;
     }
