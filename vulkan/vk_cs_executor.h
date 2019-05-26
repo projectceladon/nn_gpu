@@ -29,26 +29,23 @@ NAME_SPACE_BEGIN
 
 struct ShaderConfig
 {
+public:
+    ShaderConfig(const int lsz_x,
+                 const int lsz_y,
+                 const int lsz_z,
+                 const int block_w,
+                 const int block_h,
+                 const int block_d):
+        local_size_x(lsz_x), local_size_y(lsz_y), local_size_z(lsz_z),
+        block_width(block_w), block_height(block_h), block_depth(block_d)
+    {};
+
     int local_size_x;
     int local_size_y;
     int local_size_z;
     int block_width;
     int block_height;
     int block_depth;
-    ShaderConfig(const int lsz_x,
-                     const int lsz_y,
-                     const int lsz_z,
-                     const int block_w,
-                     const int block_h,
-                     const int block_d)
-    {
-        local_size_x = lsz_x;
-        local_size_y = lsz_y;
-        local_size_z = lsz_z;
-        block_width  = block_w;
-        block_height = block_h;
-        block_depth  = block_d;
-    }
 };
 
 class VkCsExecutor : public GpuExecutor
@@ -89,6 +86,7 @@ private:
 
     bool doEleWise(const Operation& operation, const int type);
     bool convolve(const Operation& operation, ShaderConfig& config);
+    bool depthConvolve(const Operation& operation, ShaderConfig& config);
     bool doPool(const Operation& operation, ShaderConfig& config, const int type);
 
 #define SETUP_OP(op) bool do##op(const Operation& operation);
