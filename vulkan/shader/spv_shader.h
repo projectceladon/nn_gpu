@@ -22,7 +22,7 @@
 NAME_SPACE_BEGIN
 
 extern const unsigned int elewise_spv[890];
-extern const unsigned int conv_spv[1750];
+extern const unsigned int conv_spv[1847];
 extern const unsigned int concat_spv[541];
 extern const unsigned int softmax_spv[1496];
 extern const unsigned int avg_pool_spv[1538];
