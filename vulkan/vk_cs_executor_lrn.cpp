@@ -71,7 +71,7 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
     VkOperand& bias     = operands[ins[2]];
     VkOperand& alpha    = operands[ins[3]];
     VkOperand& beta     = operands[ins[4]];
-    VkOperand& out      = operands[outs[1]];
+    VkOperand& out      = operands[outs[0]];
 
     Shape in_shape  = in.getShape();
     Shape out_shape = out.getShape();
