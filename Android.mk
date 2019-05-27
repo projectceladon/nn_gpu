@@ -34,6 +34,7 @@ vulkan/vk_operand.cpp \
 vulkan/vk_buffer.cpp \
 vulkan/vk_cs_executor_elewise.cpp \
 vulkan/vk_cs_executor_conv.cpp \
+vulkan/vk_cs_executor_depth_conv.cpp \
 vulkan/vk_cs_executor_concat.cpp \
 vulkan/vk_cs_executor_softmax.cpp \
 vulkan/vk_cs_executor_pool.cpp \
@@ -42,6 +43,7 @@ vulkan/vk_op_base.cpp \
 vulkan/vk_wrapper.cpp \
 vulkan/shader/elewise_spv.cpp \
 vulkan/shader/conv_spv.cpp \
+vulkan/shader/dw_conv_spv.cpp \
 vulkan/shader/concat_spv.cpp \
 vulkan/shader/softmax_spv.cpp \
 vulkan/shader/avg_pool_spv.cpp \

@@ -1,4 +1,6 @@
 vulkan/shader/generate.sh
 vulkan/shader/generate_cpp.py
 vulkan/shader/glslangValidator
+vulkan/shader/*.tmp
+vulkan/shader/*.spv
 
