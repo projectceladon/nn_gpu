@@ -118,4 +118,4 @@ extern const unsigned int softmax_spv[900] = {
     0x000200f8,0x0000006f,0x000100fd,0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

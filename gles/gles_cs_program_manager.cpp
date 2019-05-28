@@ -124,4 +124,4 @@ void GlesCsProgramManager::deleteProgram(std::string& progName)
     }
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

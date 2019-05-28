@@ -242,4 +242,4 @@ bool VkCsExecutor::doCONV_2D(const Operation& operation)
     return convolve(operation, config);
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

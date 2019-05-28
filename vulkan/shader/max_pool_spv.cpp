@@ -194,4 +194,4 @@ extern const unsigned int max_pool_spv[1449] = {
     0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

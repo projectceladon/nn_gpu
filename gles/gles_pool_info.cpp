@@ -91,4 +91,4 @@ bool GlesPoolInfo::set(const hidl_memory& hidlMemory)
     }
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

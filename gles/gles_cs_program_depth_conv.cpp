@@ -153,4 +153,4 @@ void GlesCsProgramManager::getShaderSourceDEPTHWISE_CONV_2D(const void* progKey,
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

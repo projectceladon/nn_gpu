@@ -63,6 +63,6 @@ protected:
     const Model& model;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

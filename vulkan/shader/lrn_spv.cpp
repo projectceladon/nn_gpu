@@ -221,4 +221,4 @@ extern const unsigned int lrn_spv[1730] = {
     0x000100fd,0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

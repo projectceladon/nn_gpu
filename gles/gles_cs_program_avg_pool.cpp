@@ -138,4 +138,4 @@ void GlesCsProgramManager::getShaderSourceAVERAGE_POOL_2D(const void* progKey, s
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -1082,4 +1082,4 @@ void GlesCsProgramManager::getShaderSourceCONV_2D(const void* basicKey, std::str
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

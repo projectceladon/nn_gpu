@@ -82,6 +82,6 @@ bool validateModel(const Model& model);
 // Each driver should do their own validation of OEM types.
 bool validateRequest(const Request& request, const Model& model);
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

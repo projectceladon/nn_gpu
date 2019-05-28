@@ -139,4 +139,4 @@ bool VkCsExecutor::doEleWise(const Operation& operation, const int type)
 	return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -140,4 +140,4 @@ bool GlesCsExecutor::doDEPTHWISE_CONV_2D(const Operation& operation, GlesOperati
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

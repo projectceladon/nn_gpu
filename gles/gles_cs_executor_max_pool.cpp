@@ -115,4 +115,4 @@ bool GlesCsExecutor::doMAX_POOL_2D(const Operation& operation, GlesOperationReso
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

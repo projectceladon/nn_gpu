@@ -68,4 +68,4 @@ bool GlesCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation, 
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

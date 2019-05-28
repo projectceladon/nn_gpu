@@ -300,4 +300,4 @@ extern const unsigned int dw_conv_spv[2361] = {
     0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

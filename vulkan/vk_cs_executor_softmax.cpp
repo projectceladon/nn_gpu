@@ -185,4 +185,4 @@ bool VkCsExecutor::doSOFTMAX(const Operation& operation)
 
 #endif
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -162,4 +162,4 @@ bool VkCsExecutor::doMAX_POOL_2D(const Operation& operation)
     return doPool(operation, config, kPoolTypeMax);
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

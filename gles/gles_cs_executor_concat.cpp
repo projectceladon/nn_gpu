@@ -110,4 +110,4 @@ bool GlesCsExecutor::doCONCATENATION(const Operation& operation, GlesOperationRe
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

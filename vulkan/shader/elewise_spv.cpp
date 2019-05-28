@@ -124,4 +124,4 @@ extern const unsigned int elewise_spv[890] = {
     0x000100fd,0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

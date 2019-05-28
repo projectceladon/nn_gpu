@@ -105,6 +105,6 @@ private:
 #undef SETUP_OP
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

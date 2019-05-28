@@ -33,4 +33,4 @@ bool GlesCsExecutor::doLOGISTIC(const Operation& operation, GlesOperationResourc
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

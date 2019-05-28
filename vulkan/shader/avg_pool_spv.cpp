@@ -205,4 +205,4 @@ extern const unsigned int avg_pool_spv[1538] = {
     0x000100fd,0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

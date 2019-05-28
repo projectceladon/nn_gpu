@@ -100,4 +100,4 @@ bool GlesCsExecutor::doADD(const Operation& operation, GlesOperationResource& re
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -49,4 +49,4 @@ bool GlesCsExecutor::doSOFTMAX(const Operation& operation, GlesOperationResource
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

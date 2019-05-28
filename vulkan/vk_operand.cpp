@@ -306,4 +306,4 @@ void VkOperand::copyTo(VkOperand& dst)
 
 //added done
 
-NAME_SPACE_STOP
+NAME_SPACE_END

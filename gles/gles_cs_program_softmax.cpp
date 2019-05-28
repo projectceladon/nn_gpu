@@ -71,4 +71,4 @@ void GlesCsProgramManager::getShaderSourceSOFTMAX(const void* progKey, std::stri
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

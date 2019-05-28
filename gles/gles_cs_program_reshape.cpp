@@ -15,4 +15,4 @@ void GlesCsProgramManager::getShaderSourceRESHAPE(const void* progKey, std::stri
     return;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

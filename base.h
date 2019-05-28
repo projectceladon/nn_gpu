@@ -11,7 +11,7 @@ namespace neuralnetworks { \
 namespace V1_0 { \
 namespace implementation {
 
-#define NAME_SPACE_STOP \
+#define NAME_SPACE_END \
 } \
 } \
 } \

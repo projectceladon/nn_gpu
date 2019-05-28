@@ -454,4 +454,4 @@ std::string VkCsExecutor::getOpName(const Operation& operation)
     return "unknown";
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

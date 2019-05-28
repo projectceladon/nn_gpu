@@ -69,4 +69,4 @@ PreparedModel::~PreparedModel()
     exec->deinitPerModel();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

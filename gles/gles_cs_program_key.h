@@ -132,6 +132,6 @@ struct GlesCsProgramKeyMul : GlesCsProgramKeyBasic
     bool broadcast;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

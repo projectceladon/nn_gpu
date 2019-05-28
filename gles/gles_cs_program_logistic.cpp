@@ -43,4 +43,4 @@ void GlesCsProgramManager::getShaderSourceLOGISTIC(const void* progKey, std::str
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

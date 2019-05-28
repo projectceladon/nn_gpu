@@ -84,4 +84,4 @@ void GlesCsProgramManager::getShaderSourceMUL(const void* progKey, std::string& 
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

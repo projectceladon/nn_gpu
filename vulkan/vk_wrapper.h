@@ -235,6 +235,6 @@ extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 extern PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif  // VULKAN_WRAPPER_H

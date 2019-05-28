@@ -52,6 +52,6 @@ private:
     std::shared_ptr<Buffer> buffer;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

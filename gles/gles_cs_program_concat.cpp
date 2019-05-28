@@ -77,4 +77,4 @@ void GlesCsProgramManager::getShaderSourceCONCATENATION(const void* progKey, std
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

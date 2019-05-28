@@ -115,4 +115,4 @@ bool GlesCsExecutor::doAVERAGE_POOL_2D(const Operation& operation, GlesOperation
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

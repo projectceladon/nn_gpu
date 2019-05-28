@@ -31,6 +31,6 @@ extern const unsigned int lrn_spv[1730];
 extern const unsigned int dw_conv_spv[2361];
 extern const unsigned int logistic_spv[368];
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

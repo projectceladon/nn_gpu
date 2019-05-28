@@ -77,4 +77,4 @@ void VkMemoryInfo::dump()
         buffer->dump();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

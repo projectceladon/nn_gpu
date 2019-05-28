@@ -61,6 +61,6 @@ private:
     bool checkGroupParam(uint32_t* localSize, uint32_t* groupCount);
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

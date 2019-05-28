@@ -84,4 +84,4 @@ void GlesCsProgramManager::getShaderSourceLOCAL_RESPONSE_NORMALIZATION(const voi
     src = ss.str();
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

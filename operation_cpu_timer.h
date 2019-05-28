@@ -78,6 +78,6 @@ private:
     std::string opName;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

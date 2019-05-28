@@ -60,6 +60,6 @@ enum ShapeIdx
     entry.offset = offset_; \
     entry.size = size_;
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

@@ -93,4 +93,4 @@ int Device::run()
     return 1;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -1307,4 +1307,4 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
     return true;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -85,4 +85,4 @@ BaseExecutor* ExecutorManager::createExecutor(const Model& model)
 	return NULL;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

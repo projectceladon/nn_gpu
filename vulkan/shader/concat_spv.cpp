@@ -80,4 +80,4 @@ extern const unsigned int concat_spv[541] = {
     0x0000001d,0x000200f8,0x0000001d,0x000100fd,0x00010038
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END

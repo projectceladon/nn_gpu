@@ -46,6 +46,6 @@ private:
     std::vector<VkMemoryInfo*> memInfos;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

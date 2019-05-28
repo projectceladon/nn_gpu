@@ -121,4 +121,4 @@ void GlesMemoryManager::clean()
     }
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

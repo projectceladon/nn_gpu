@@ -66,6 +66,6 @@ private:
     VkMemoryInfo* createMemoryInfo(std::vector<VkMemoryInfo>& memInfos, uint8_t* userptr, size_t length) const;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

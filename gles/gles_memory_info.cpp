@@ -78,4 +78,4 @@ GLuint GlesMemoryInfo::getSSbo()
     return ssbo;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

@@ -83,6 +83,6 @@ private:
     uint32_t operandIndex;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

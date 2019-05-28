@@ -39,6 +39,6 @@ using ::android::hardware::neuralnetworks::V1_0::RequestArgument;
 using ::android::hidl::allocator::V1_0::IAllocator;
 using ::android::hidl::memory::V1_0::IMemory;
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

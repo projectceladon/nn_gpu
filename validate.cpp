@@ -1679,4 +1679,4 @@ bool validateRequest(const Request& request, const Model& model)
             validatePools(request.pools));
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END

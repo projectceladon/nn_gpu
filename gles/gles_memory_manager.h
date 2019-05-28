@@ -72,6 +72,6 @@ private:
     GlesMemoryInfo* createMemoryInfo(std::vector<GlesMemoryInfo>& memInfos, uint8_t* userptr, size_t length) const;
 };
 
-NAME_SPACE_STOP
+NAME_SPACE_END
 
 #endif

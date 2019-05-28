@@ -294,4 +294,4 @@ bool VkOpBase::computeGroupCountX(uint32_t totalThreadX, int preferLocalSizeX, i
     return false;
 }
 
-NAME_SPACE_STOP
+NAME_SPACE_END
