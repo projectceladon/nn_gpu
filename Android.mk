@@ -40,6 +40,7 @@ vulkan/vk_cs_executor_logistic.cpp \
 vulkan/vk_cs_executor_softmax.cpp \
 vulkan/vk_cs_executor_pool.cpp \
 vulkan/vk_cs_executor_lrn.cpp \
+vulkan/vk_cs_executor_reshape.cpp \
 vulkan/vk_op_base.cpp \
 vulkan/vk_wrapper.cpp \
 vulkan/shader/elewise_spv.cpp \
