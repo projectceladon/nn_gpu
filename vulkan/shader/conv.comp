@@ -51,7 +51,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx < p.M && gy < p.N && gz < p.BATCH)
+    if (gx < p.M)
     {
         float sum = 0.0f;
         int output_y = gy / p.OUT_W;
@@ -65,7 +65,7 @@ void main()
 
         for (int y = 0; y < p.FILTER_H; y++)
         {
-            for (int x = 0; y < p.FILTER_W; x++)
+            for (int x = 0; x < p.FILTER_W; x++)
             {
                 if (org_y + y >= 0 && org_y + y < p.IN_H && org_x + x >= 0 && org_x + x < p.IN_W)
                 {
