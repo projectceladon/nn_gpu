@@ -127,8 +127,8 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
             uint32_t padding_top    = operands[ins[5]].getScalarData<uint32_t>();
             uint32_t padding_bottom = operands[ins[6]].getScalarData<uint32_t>();
 
-            param.pad_w             = padding_left - padding_right;
-            param.pad_h             = padding_top - padding_bottom;
+            param.pad_w             = padding_left;
+            param.pad_h             = padding_top;
             param.stride_w          = operands[ins[7]].getScalarData<uint32_t>();
             param.stride_h          = operands[ins[8]].getScalarData<uint32_t>();
             param.activation        = operands[ins[9]].getScalarData<uint32_t>();
