@@ -15,18 +15,12 @@ layout(push_constant) uniform pushBlock {
     int filter_h;
     int filter_w;
     int channels;
-    int batch;
     int has_bias;
     int M;
     int K;
     int N;
-    int tail_m;
     int depth_multiplier;
     int activation;
-    int basic_shader_batch_idx;
-    int basic_shader_partition_idx;
-    int basic_shader_partition_size;
-
 } p;
 
 layout(binding = 0) readonly buffer Input0{

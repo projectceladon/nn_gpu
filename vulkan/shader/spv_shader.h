@@ -22,13 +22,13 @@
 NAME_SPACE_BEGIN
 
 extern const unsigned int elewise_spv[890];
-extern const unsigned int conv_spv[1659];
+extern const unsigned int conv_spv[1739];
 extern const unsigned int concat_spv[541];
 extern const unsigned int softmax_spv[900];
 extern const unsigned int avg_pool_spv[1538];
 extern const unsigned int max_pool_spv[1449];
 extern const unsigned int lrn_spv[1730];
-extern const unsigned int dw_conv_spv[2361];
+extern const unsigned int dw_conv_spv[2292];
 extern const unsigned int logistic_spv[368];
 
 NAME_SPACE_STOP
