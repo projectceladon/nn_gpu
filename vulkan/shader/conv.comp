@@ -1,23 +1,23 @@
 #version 450
-
-layout(push_constant) uniform pushBlock {
-    int IN_H;
-    int IN_W;
-    int OUT_H;
-    int OUT_W;
-    int STRIDE_H;
-    int STRIDE_W;
-    int PAD_H;
-    int PAD_W;
-    int FILTER_H;
-    int FILTER_W;
-    int CHANNELS;
-    int BATCH;
-    int M;
-    int K;
-    int N;
-    int ACTIVATION;
-} p;
+layout (constant_id = 0) const int LOCAL_SZ_X = 0;
+layout (constant_id = 1) const int LOCAL_SZ_Y = 0;
+layout (constant_id = 2) const int LOCAL_SZ_Z = 0;
+layout (constant_id = 3) const int IN_H = 0;
+layout (constant_id = 4) const int IN_W = 0;
+layout (constant_id = 5) const int OUT_H = 0;
+layout (constant_id = 6) const int OUT_W = 0;
+layout (constant_id = 7) const int STRIDE_H = 0;
+layout (constant_id = 8) const int STRIDE_W = 0;
+layout (constant_id = 9) const int PAD_H = 0;
+layout (constant_id = 10) const int PAD_W = 0;
+layout (constant_id = 11) const int FILTER_H = 0;
+layout (constant_id = 12) const int FILTER_W = 0;
+layout (constant_id = 13) const int CHANNELS = 0;
+layout (constant_id = 14) const int BATCH = 0;
+layout (constant_id = 15) const int M = 0;
+layout (constant_id = 16) const int K = 0;
+layout (constant_id = 17) const int N = 0;
+layout (constant_id = 18) const int ACTIVATION = 0;
 
 #define ACTIVATION_FUNCTION(x)     \
 {                                  \
@@ -42,8 +42,9 @@ layout(binding = 3) writeonly buffer Output {
     float convolved_image_data[];
 };
 
-// todo: should be passed from configuration
-layout(local_size_x = 1, local_size_y = 16, local_size_z = 1) in;
+layout(local_size_x_id = 0) in;
+layout(local_size_y_id = 1) in;
+layout(local_size_z_id = 2) in;
 
 void main()
 {
@@ -51,36 +52,36 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx < p.M)
+    if (gx < M)
     {
         float sum = 0.0f;
-        int output_y = gy / p.OUT_W;
-        int output_x = gy % p.OUT_W;
-        int org_y = output_y * p.STRIDE_H - p.PAD_H;
-        int org_x = output_x * p.STRIDE_W - p.PAD_W;
-        int weight_off = gx * p.K;
-        int image_offset  = gz * p.IN_H * p.IN_W * p.CHANNELS;
-        int output_offset = gz * p.M * p.N;
-        int input_off = image_offset + (org_y * p.IN_W + org_x) * p.CHANNELS;
+        int output_y = gy / OUT_W;
+        int output_x = gy % OUT_W;
+        int org_y = output_y * STRIDE_H - PAD_H;
+        int org_x = output_x * STRIDE_W - PAD_W;
+        int weight_off = gx * K;
+        int image_offset  = gz * IN_H * IN_W * CHANNELS;
+        int output_offset = gz * M * N;
+        int input_off = image_offset + (org_y * IN_W + org_x) * CHANNELS;
 
-        for (int y = 0; y < p.FILTER_H; y++)
+        for (int y = 0; y < FILTER_H; y++)
         {
-            for (int x = 0; x < p.FILTER_W; x++)
+            for (int x = 0; x < FILTER_W; x++)
             {
-                if (org_y + y >= 0 && org_y + y < p.IN_H && org_x + x >= 0 && org_x + x < p.IN_W)
+                if (org_y + y >= 0 && org_y + y < IN_H && org_x + x >= 0 && org_x + x < IN_W)
                 {
-                    for (int c = 0; c < p.CHANNELS; c++)
+                    for (int c = 0; c < CHANNELS; c++)
                     {
                        sum += image_data[input_off + c] * weight_data[weight_off + c];
                     }
                 }
-                input_off += p.CHANNELS;
-                weight_off += p.CHANNELS;
+                input_off += CHANNELS;
+                weight_off += CHANNELS;
             }
-            input_off += p.IN_W * p.CHANNELS - p.CHANNELS * p.FILTER_W;
+            input_off += IN_W * CHANNELS - CHANNELS * FILTER_W;
         }
 
-        int offset = output_offset + gy * p.N + gx;
+        int offset = output_offset + gy * N + gx;
         // todo: add activation
         convolved_image_data[offset] = sum + bias_data[gx];
     }
