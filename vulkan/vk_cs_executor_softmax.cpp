@@ -152,18 +152,19 @@ bool VkCsExecutor::doSOFTMAX(const Operation& operation)
     param.beta       = operands[ins[1]].getScalarData<float>();
     param.total      = total;
 
-    NN_GPU_DEBUG("param array_size is %d, beta is %f, total is %d", param.array_size, param.beta, param.total);
+    NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: param array_size is %d, beta is %f, total is %d",
+        param.array_size, param.beta, param.total);
 
     if (opBase->pipeline == VK_NULL_HANDLE)
     {
-        NN_GPU_DEBUG("do createShaderModule");
+        NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: do createShaderModule");
         opBase->createShaderModule(softmax_spv, sizeof(softmax_spv));
 
-        NN_GPU_DEBUG("do createPipeline");
+        NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: do createPipeline");
         opBase->createPipeline(sizeof(SoftmaxParam));
     }
 
-    NN_GPU_DEBUG("bind operands");
+    NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: bind operands");
     opBase->bindOperand(input, 0, opBase->descriptor_set);
     opBase->bindOperand(output, 1, opBase->descriptor_set);
 
@@ -171,10 +172,10 @@ bool VkCsExecutor::doSOFTMAX(const Operation& operation)
     opBase->group_y = 1;
     opBase->group_z = 1;
 
-    NN_GPU_DEBUG("do recordCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: do recordCommandBuffer");
     opBase->recordCommandBuffer((void *)&param, sizeof(SoftmaxParam));
 
-    NN_GPU_DEBUG("do runCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doSOFTMAX: do runCommandBuffer");
     opBase->runCommandBuffer();
 
     output.dump();
