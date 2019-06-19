@@ -34,13 +34,19 @@ bool VkCsExecutor::doRESHAPE(const Operation& operation)
 #define BUFFER_NUM 2
     opBase->initVulkanThing(BUFFER_NUM);
 
-    const hidl_vec<uint32_t>& ins = operation.inputs;
+    const hidl_vec<uint32_t>& ins  = operation.inputs;
     const hidl_vec<uint32_t>& outs = operation.outputs;
 
     VkOperand& input  = operands[ins[0]];
     VkOperand& output = operands[outs[0]];
 
     output.shareGpuStorage(input);
+
+    Shape in_shape  = input.getShape();
+    Shape out_shape = output.getShape();
+
+    NN_GPU_DEBUG("VkCsExecutor::doRESHAPE: in_h is %d, in_w is %d, out_h is %d, out_w is %d",
+        in_shape[kShapeIdxHeight], in_shape[kShapeIdxWidth], out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth]);
 
     NN_GPU_EXIT();
 

@@ -130,6 +130,8 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     // todo: need a wrapper, just for 3*3*1 && 3*3*2 input here.
     spec_const.local_sz_x = 1;
     spec_const.local_sz_y = 16;
+
+    // todo: auto prepare
     if (in_shape[kShapeIdxChannel] == 1)
     {
         spec_const.local_sz_z = 1;
@@ -212,17 +214,24 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         spec_info.dataSize      = sizeof(spec_const);
         spec_info.pData         = &spec_const;
 
-        NN_GPU_DEBUG("run createShaderModule");
+        NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: run createShaderModule");
         opBase->createShaderModule(conv_spv, sizeof(conv_spv));
 
-        NN_GPU_DEBUG("run createPipeline");
+        NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: run createPipeline");
         opBase->createPipeline(sizeof(PushConst), &spec_info);
     }
-
 
     opBase->group_x = alignSize(alignSize(N, config.block_width) / config.block_width, spec_const.local_sz_x) / spec_const.local_sz_x;
     opBase->group_y = alignSize(alignSize(M, config.block_height) / config.block_height, spec_const.local_sz_y) / spec_const.local_sz_y;
     opBase->group_z = alignSize(alignSize(spec_const.batch, config.block_depth), spec_const.local_sz_z) / spec_const.local_sz_z;
+
+    NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d"
+        "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, filter_h %d, filter_w %d"
+        "channels %d, batch %d, m %d, k %d, n %d, activation %d",
+        spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y, opBase->group_z,
+        spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w, spec_const.stride_h, spec_const.stride_w,
+        spec_const.pad_h, spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels, spec_const.batch,
+        spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
 
     NN_GPU_DEBUG("bind operands");
     opBase->bindOperand(in, 0, opBase->descriptor_set);
@@ -236,10 +245,10 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     {
         for (int n = 0; n < partition_num; n++)
         {
-            NN_GPU_DEBUG("do recordCommandBuffer");
+            NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: do recordCommandBuffer");
             opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
 
-            NN_GPU_DEBUG("do runCommandBuffer");
+            NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: do runCommandBuffer");
             opBase->runCommandBuffer();
         }
     }
@@ -252,11 +261,17 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 // so make these assumptions: group = 1, dilation = 1, has_bias = 1
 bool VkCsExecutor::doCONV_2D(const Operation& operation)
 {
+    NN_GPU_ENTRY();
+
     ASSERT(operation.type == OperationType::CONV_2D);
+    bool ret = false;
 
     ShaderConfig config = {1, 16, 1, 1, 1, 1};
     prepareConfig(operation, config);
-    return convolve(operation, config);
+    ret = convolve(operation, config);
+
+    NN_GPU_EXIT();
+    return ret;
 }
 
 NAME_SPACE_STOP

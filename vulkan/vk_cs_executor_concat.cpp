@@ -53,7 +53,7 @@ bool VkCsExecutor::doCONCATENATION(const Operation& operation)
     opBase->initVulkanThing(BUFFER_NUM);
 
     ASSERT(operation.type == OperationType::CONCATENATION);
-    const hidl_vec<uint32_t>& ins = operation.inputs;
+    const hidl_vec<uint32_t>& ins  = operation.inputs;
     const hidl_vec<uint32_t>& outs = operation.outputs;
 
     if (outs.size() != 1 || ins.size() < 2) {
@@ -61,17 +61,23 @@ bool VkCsExecutor::doCONCATENATION(const Operation& operation)
     }
 
     int32_t numInputTensors = ins.size() - 1;
-    int32_t axis = operands[ins[numInputTensors]].getScalarData<int32_t>();
-    VkOperand& firstInput = operands[ins[0]];
-    uint32_t numDims = firstInput.getNumberOfDimensions();
+    int32_t axis            = operands[ins[numInputTensors]].getScalarData<int32_t>();
+    VkOperand& firstInput   = operands[ins[0]];
+    uint32_t numDims        = firstInput.getNumberOfDimensions();
+
     NN_OPS_CHECK(axis >= 0);
     NN_OPS_CHECK(axis < (int32_t)numDims);
+
     int32_t concatSize;
     bool lastaxis = (axis == (int32_t)numDims - 1);
     if (lastaxis)
+    {
         concatSize = 1;
+    }
     else
+    {
         concatSize = firstInput.getElementCount(axis + 1);
+    }
 
     int sum_axis = firstInput.getDimensionSize(axis);
     VkOperand& output = operands[outs[0]];
@@ -114,24 +120,35 @@ bool VkCsExecutor::doCONCATENATION(const Operation& operation)
 
     if (opBase->pipeline == VK_NULL_HANDLE)
     {
-
         opBase->createShaderModule(concat_spv, sizeof(concat_spv));
         opBase->createPipeline(sizeof(ConcatParam));
     }
 
+    NN_GPU_DEBUG("VkCsExecutor::doCONCATENATION: param out_concat_axis is %d, concat_size is %d",
+        param.out_concat_axis, param.concat_size);
+
     param.accumulated_concat_axis = 0;
+
     for (int i = 0; i < numInputTensors; i++)
     {
+        NN_GPU_DEBUG("VkCsExecutor::doCONCATENATION: bind operands");
+
         opBase->bindOperand(operands[ins[i]], 0, opBase->descriptor_set);
         opBase->bindOperand(output, 1, opBase->descriptor_set);
+
         param.total_concat_size = operands[ins[i]].getElementCount(axis);
         param.thread_num = operands[ins[i]].getElementCount();
+
         opBase->group_x = alignSize(param.thread_num, config.local_size_x) / config.local_size_x;
         opBase->group_y = 1;
         opBase->group_z = 1;
 
+        NN_GPU_DEBUG("VkCsExecutor::doCONCATENATION: do recordCommandBuffer");
         opBase->recordCommandBuffer((void *)&param, sizeof(ConcatParam));
+
+        NN_GPU_DEBUG("VkCsExecutor::doCONCATENATION: do runCommandBuffer");
         opBase->runCommandBuffer();
+
         param.accumulated_concat_axis += operands[ins[i]].getDimensionSize(axis);
     }
 

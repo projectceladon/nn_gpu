@@ -88,9 +88,10 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
     param.bias          = bias.getScalarData<float>();
     param.negative_beta = -1.0 * beta.getScalarData<float>();
 
-    NN_GPU_DEBUG("param thread_num %d, channels %d, height %d, width %d, filter_len %d, radius %d, alpha %f, bias %f, negative_beta %f",
-    param.thread_num, param.channels, param.height, param.width,
-    param.filter_len, param.radius, param.alpha, param.bias, param.negative_beta);
+    NN_GPU_DEBUG("VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION: param thread_num %d, channels %d, "
+        "height %d, width %d, filter_len %d, radius %d, alpha %f, bias %f, negative_beta %f",
+        param.thread_num, param.channels, param.height, param.width,
+        param.filter_len, param.radius, param.alpha, param.bias, param.negative_beta);
 
     if (opBase->pipeline == VK_NULL_HANDLE)
     {
@@ -101,14 +102,14 @@ bool VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION(const Operation& operation)
         opBase->group_z = 1;
     }
 
-    NN_GPU_DEBUG("bind operands");
+    NN_GPU_DEBUG("VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION: bind operands");
     opBase->bindOperand(in, 0, opBase->descriptor_set);
     opBase->bindOperand(out, 1, opBase->descriptor_set);
 
-    NN_GPU_DEBUG("run recordCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION: do recordCommandBuffer");
     opBase->recordCommandBuffer((void *)&param, sizeof(LRNParam));
 
-    NN_GPU_DEBUG("run runCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doLOCAL_RESPONSE_NORMALIZATION: run runCommandBuffer");
     opBase->runCommandBuffer();
 
     NN_GPU_EXIT();

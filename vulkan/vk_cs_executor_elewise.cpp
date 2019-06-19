@@ -65,13 +65,10 @@ bool VkCsExecutor::doEleWise(const Operation& operation, const int type)
     const size_t inCount = ins.size();
 	ASSERT(inCount == 3);
 
-    VkOperand& in0  = operands[ins[0]];
+    VkOperand& in0 = operands[ins[0]];
     VkOperand& in1 = operands[ins[1]];
-    VkOperand& in2   = operands[ins[2]];
+    VkOperand& in2 = operands[ins[2]];
     VkOperand& out = operands[outs[0]];
-    
-    NN_GPU_DEBUG("operands index for in0, in1 and in2 is %d, %d, %d, index for out is %d",
-        ins[0], ins[1], ins[2], outs[0]);
 
 	Shape in0_shape = in0.getShape();
 	Shape in1_shape = in1.getShape();
@@ -79,10 +76,14 @@ bool VkCsExecutor::doEleWise(const Operation& operation, const int type)
 
      // broadcast
     int broadcast = 1;
-    int in0_bind = 0;
-    int in1_bind = 1;
+    int in0_bind  = 0;
+    int in1_bind  = 1;
+
     if (in0.getElementCount() == in1.getElementCount())
+    {
         broadcast = 0;
+    }
+
     if (in0.getElementCount() < in1.getElementCount())
     {
         in0_bind = 1;
@@ -96,7 +97,10 @@ bool VkCsExecutor::doEleWise(const Operation& operation, const int type)
 	opBase->group_z = 1;
 
 	int activation		 = in2.getScalarData<int>();
-    NN_GPU_DEBUG("activation %d, opBase->group_x %d, opBase->group_y %d, opBase->group_z %d, total_thread %d, broadcast %d",
+
+    NN_GPU_DEBUG("VkCsExecutor::doEleWise: operation type is %d, operands index of in0, in1 and in2 is %d, %d, %d,"
+        "index of out is %d, activation is %d, group_x is %d, group_y is %d, group_z is %d, total_thread is %d, broadcast is %d",
+        type, ins[0], ins[1], ins[2], outs[0],
         activation, opBase->group_x, opBase->group_y, opBase->group_z, total_thread, broadcast);
 
 	if (opBase->pipeline == VK_NULL_HANDLE)
@@ -130,8 +134,11 @@ bool VkCsExecutor::doEleWise(const Operation& operation, const int type)
 	opBase->bindOperand(out, 2, opBase->descriptor_set);
 
     PushConst push_const = {total_thread, std::min(in0.getElementCount(), in1.getElementCount())};
+
+    NN_GPU_DEBUG("VkCsExecutor::doEleWise: do recordCommandBuffer");
     opBase->recordCommandBuffer((void *)&push_const, sizeof(PushConst));
 
+    NN_GPU_DEBUG("VkCsExecutor::doEleWise: do runCommandBuffer");
 	opBase->runCommandBuffer();
 
     out.dump();

@@ -66,14 +66,14 @@ bool VkCsExecutor::doLOGISTIC(const Operation& operation)
 
     if (opBase->pipeline == VK_NULL_HANDLE)
     {
-        NN_GPU_DEBUG("do createShaderModule");
+        NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: run createShaderModule");
         opBase->createShaderModule(logistic_spv, sizeof(logistic_spv));
 
-        NN_GPU_DEBUG("do createPipeline");
+        NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: run createPipeline");
         opBase->createPipeline(sizeof(LogisticParam));
     }
 
-    NN_GPU_DEBUG("bind operands");
+    NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: bind operands");
     opBase->bindOperand(input, 0, opBase->descriptor_set);
     opBase->bindOperand(output, 1, opBase->descriptor_set);
 
@@ -81,10 +81,13 @@ bool VkCsExecutor::doLOGISTIC(const Operation& operation)
     opBase->group_y = 1;
     opBase->group_z = 1;
 
-    NN_GPU_DEBUG("do recordCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: group_x is %d, group_y is %d, group_z is %d",
+        opBase->group_x, opBase->group_y, opBase->group_z);
+
+    NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: do recordCommandBuffer");
     opBase->recordCommandBuffer((void *)&param, sizeof(LogisticParam));
 
-    NN_GPU_DEBUG("do runCommandBuffer");
+    NN_GPU_DEBUG("VkCsExecutor::doLOGISTIC: do runCommandBuffer");
     opBase->runCommandBuffer();
 
     NN_GPU_EXIT();

@@ -187,10 +187,10 @@ bool VkCsExecutor::depthConvolve(const Operation& operation, ShaderConfig& confi
         spec_info.dataSize      = sizeof(spec_const);
         spec_info.pData         = &spec_const;
 
-        NN_GPU_DEBUG("run createShaderModule");
+        NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: run createShaderModule");
         opBase->createShaderModule(dw_conv_spv, sizeof(dw_conv_spv));
 
-        NN_GPU_DEBUG("run createPipeline");
+        NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: run createPipeline");
         opBase->createPipeline(sizeof(PushConst), &spec_info);
     }
 
@@ -199,7 +199,16 @@ bool VkCsExecutor::depthConvolve(const Operation& operation, ShaderConfig& confi
     opBase->group_z = ceil(static_cast<float>
           ((ceil(static_cast<float>(N) * in_shape[kShapeIdxBatch] / spec_const.depth_multiplier))) / spec_const.local_sz_z);
 
-    NN_GPU_DEBUG("bind operands");
+    NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d, "
+        "in_h %d, in_w %d, out_h %d, out_w %d, stride_h %d, stride_w %d, dilation_h %d, dilation_w %d, pad_h %d, pad_w %d"
+        "filter_h %d, filter_w %d, channels %d, has_bias %d, m %d, k %d, n %d, depth_multiplier %d, activation %d",
+        spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y, opBase->group_z,
+        spec_const.in_h, spec_const.in_w, spec_const.out_h, spec_const.out_w, spec_const.stride_h, spec_const.stride_w,
+        spec_const.dilation_h, spec_const.dilation_w, spec_const.pad_h, spec_const.pad_w, spec_const.filter_h,
+        spec_const.filter_w, spec_const.channels, spec_const.has_bias, spec_const.m, spec_const.k, spec_const.n,
+        spec_const.depth_multiplier, spec_const.activation);
+
+    NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: bind operands");
     opBase->bindOperand(in, 0, opBase->descriptor_set);
     opBase->bindOperand(filter, 1, opBase->descriptor_set);
     opBase->bindOperand(bias, 2, opBase->descriptor_set);
@@ -212,10 +221,10 @@ bool VkCsExecutor::depthConvolve(const Operation& operation, ShaderConfig& confi
     {
         for (int n = 0;  n < partition_num; n++)
         {
-            NN_GPU_DEBUG("run recordCommandBuffer");
+            NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: do recordCommandBuffer");
             opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
 
-            NN_GPU_DEBUG("run runCommandBuffer");
+            NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: do runCommandBuffer");
             opBase->runCommandBuffer();
         }
     }
