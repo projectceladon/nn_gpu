@@ -30,6 +30,13 @@ NAME_SPACE_BEGIN
 #define MAX_GROUP_COUNT_Y 65535
 #define MAX_GROUP_COUNT_Z 65535
 
+using ShaderConfigPair = std::pair<std::string, std::string>;
+using ShaderConfigMap  = std::map<std::string, std::string>;
+
+static std::mutex mtx;
+static ShaderConfigMap shaderConfigMap;
+static bool is_initialized = false;
+
 struct PushConst {
 public:
     PushConst() {};
@@ -65,6 +72,226 @@ public:
     int activation;
 };
 
+static const char* defaultConfig[] =
+{
+#ifdef TARGET_GORDON_PEAK
+    /* inception-v3 */
+    "optype3_batch1_in149_149_32_out147_147_32_filter3_3_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_168_1_block8_4_1",
+    "optype3_batch1_in147_147_32_out147_147_64_filter3_3_pad1_1_stride1_1_activation1_bias1", "type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in73_73_64_out73_73_80_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in73_73_80_out71_71_192_filter3_3_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_104_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in35_35_48_out35_35_64_filter5_5_pad2_2_stride1_1_activation1_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in35_35_64_out35_35_96_filter3_3_pad1_1_stride1_1_activation1_bias1", "type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in35_35_96_out35_35_96_filter3_3_pad1_1_stride1_1_activation1_bias1", "type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_32_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in35_35_256_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_5_1_block8_4_1",
+    "optype3_batch1_in35_35_256_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_232_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out17_17_384_filter3_3_pad0_0_stride2_2_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in35_35_96_out17_17_96_filter3_3_pad0_0_stride2_2_activation1_bias1", "type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_192_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_128_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_6_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_128_filter1_7_pad0_3_stride1_1_activation1_bias1", "type5_lsz1_184_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1", "type5_lsz1_184_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_128_filter7_1_pad3_0_stride1_1_activation1_bias1", "type5_lsz1_104_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1", "type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_160_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_160_filter1_7_pad0_3_stride1_1_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1", "type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_160_filter7_1_pad3_0_stride1_1_activation1_bias1", "type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1", "type5_lsz1_136_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1", "type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out8_8_320_filter3_3_pad0_0_stride2_2_activation1_bias1", "type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out8_8_192_filter3_3_pad0_0_stride2_2_activation1_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_320_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_384_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in8_8_384_out8_8_384_filter1_3_pad0_1_stride1_1_activation1_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in8_8_384_out8_8_384_filter3_1_pad1_0_stride1_1_activation1_bias1", "type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_448_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in8_8_448_out8_8_384_filter3_3_pad1_1_stride1_1_activation1_bias1", "type5_lsz1_48_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_192_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_320_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_112_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_384_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_48_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_448_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_240_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_192_filter1_1_pad0_0_stride1_1_activation1_bias1", "type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in1_1_2048_out1_1_1001_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz4_64_1_block1_1_1",
+    /* mobilenet */
+    "optype3_batch1_in224_224_3_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1","type4_lsz4_64_1_block4_4_1",
+    "optype3_batch1_in112_112_32_out112_112_64_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_96_1_block8_4_1",
+    "optype3_batch1_in56_56_128_out56_56_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_48_1_block8_4_1",
+    "optype3_batch1_in28_28_256_out28_28_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_512_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in14_14_512_out14_14_512_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_1024_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in7_7_1024_out7_7_1024_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_240_1_block8_4_1",
+    "optype3_batch1_in1_1_1024_out1_1_1001_filter1_1_pad0_0_stride1_1_activation0_bias1","type1_lsz4_64_1_block1_1_1",
+    /* resnet50 */
+    "optype3_batch1_in224_224_3_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1","type4_lsz4_4_1_block4_4_1",
+    "optype3_batch1_in56_56_64_out56_56_256_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_64_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_104_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out56_56_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out28_28_512_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out28_28_128_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_128_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_32_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_512_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out28_28_128_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out14_14_1024_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out14_14_256_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_256_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_136_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_1024_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_32_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out14_14_256_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out7_7_2048_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_224_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out7_7_512_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_168_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_512_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_208_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_2048_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in7_7_2048_out7_7_512_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_224_1_block8_4_1",
+    /* cts */
+    "optype3_batch1_in1_1_3_out1_1_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type0_lsz16_1_1_block1_1_1",
+    "optype3_batch1_in2_3_3_out2_3_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_1_4_block1_1_1",
+    "optype3_batch1_in3_3_1_out2_2_1_filter2_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_1_4_block1_1_1",
+    "optype3_batch1_in8_8_3_out8_8_1_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz64_1_4_block1_1_1",
+    "optype3_batch1_in8_8_3_out6_7_1_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz4_4_1_block1_1_1",
+    "optype3_batch1_in8_8_3_out8_8_3_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz256_1_1_block1_1_1",
+    "optype3_batch1_in8_8_3_out6_7_3_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_1_1_block1_1_1",
+    "optype3_batch1_in224_224_3_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1", "type4_lsz1_16_1_block4_4_1",
+    "optype3_batch1_in112_112_16_out112_112_16_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in56_56_16_out56_56_32_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_200_1_block8_4_1",
+    "optype3_batch1_in56_56_32_out56_56_32_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_120_1_block8_4_1",
+    "optype3_batch1_in28_28_32_out28_28_64_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_112_1_block8_4_1",
+    "optype3_batch1_in28_28_64_out28_28_64_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_208_1_block8_4_1",
+    "optype3_batch1_in14_14_64_out14_14_128_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in14_14_128_out14_14_128_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in7_7_128_out7_7_256_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in7_7_256_out7_7_256_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in1_1_256_out1_1_11_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_256_1_block1_1_1",
+    /* channel 3 to channel 4 transformed*/
+    "optype3_batch1_in224_224_4_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in224_224_4_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1", "type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in1_1_4_out1_1_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz4_4_1_block1_1_1",
+    "optype3_batch1_in2_3_4_out2_3_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_4_1_block1_1_1",
+    "optype3_batch1_in8_8_4_out8_8_1_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz4_1_16_block1_1_1",
+    "optype3_batch1_in8_8_4_out6_7_1_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_16_16_block1_1_1",
+    "optype3_batch1_in8_8_4_out8_8_3_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz1_4_4_block1_1_1",
+    "optype3_batch1_in8_8_4_out6_7_3_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_64_1_block1_1_1",
+    "optype3_batch1_in224_224_4_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_152_1_block8_4_1",
+#else
+    /* inception-v3 */
+    "optype3_batch1_in299_299_4_out149_149_32_filter3_3_pad0_0_stride2_2_activation1_bias1","type5_lsz1_56_1_block8_4_1",
+    "optype3_batch1_in149_149_32_out147_147_32_filter3_3_pad0_0_stride1_1_activation1_bias1","type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in147_147_32_out147_147_64_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_48_1_block8_4_1",
+    "optype3_batch1_in73_73_64_out73_73_80_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_224_1_block8_4_1",
+    "optype3_batch1_in73_73_80_out71_71_192_filter3_3_pad0_0_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_32_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_208_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_136_1_block8_4_1",
+    "optype3_batch1_in35_35_64_out35_35_96_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in35_35_96_out35_35_96_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_216_1_block8_4_1",
+    "optype3_batch1_in35_35_192_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_208_1_block8_4_1",
+    "optype3_batch1_in35_35_48_out35_35_64_filter5_5_pad2_2_stride1_1_activation1_bias1","type5_lsz1_248_1_block8_4_1",
+    "optype3_batch1_in35_35_256_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in35_35_256_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_200_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out35_35_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_120_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out35_35_48_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_224_1_block8_4_1",
+    "optype3_batch1_in35_35_96_out17_17_96_filter3_3_pad0_0_stride2_2_activation1_bias1","type5_lsz1_6_1_block8_4_1",
+    "optype3_batch1_in35_35_288_out17_17_384_filter3_3_pad0_0_stride2_2_activation1_bias1","type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_192_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_128_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_120_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_128_filter7_1_pad3_0_stride1_1_activation1_bias1","type5_lsz1_6_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_128_filter1_7_pad0_3_stride1_1_activation1_bias1","type5_lsz1_120_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in17_17_128_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in17_17_768_out17_17_160_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_160_filter7_1_pad3_0_stride1_1_activation1_bias1","type5_lsz1_32_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_160_filter1_7_pad0_3_stride1_1_activation1_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in17_17_160_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out17_17_192_filter7_1_pad3_0_stride1_1_activation1_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out17_17_192_filter1_7_pad0_3_stride1_1_activation1_bias1","type5_lsz1_72_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out8_8_192_filter3_3_pad0_0_stride2_2_activation1_bias1","type5_lsz1_5_1_block8_4_1",
+    "optype3_batch1_in17_17_192_out8_8_320_filter3_3_pad0_0_stride2_2_activation1_bias1","type5_lsz1_5_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_192_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_224_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_448_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in8_8_448_out8_8_384_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in8_8_384_out8_8_384_filter3_1_pad1_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in8_8_384_out8_8_384_filter1_3_pad0_1_stride1_1_activation1_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_384_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_56_1_block8_4_1",
+    "optype3_batch1_in8_8_1280_out8_8_320_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_192_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_160_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_448_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_384_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in8_8_2048_out8_8_320_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in1_1_2048_out1_1_1001_filter1_1_pad0_0_stride1_1_activation0_bias1","type1_lsz1_16_1_block1_1_1",
+    /* mobilenet */
+    "optype3_batch1_in224_224_3_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1","type4_lsz4_64_1_block4_4_1",
+    "optype3_batch1_in112_112_32_out112_112_64_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in56_56_128_out56_56_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_144_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_240_1_block8_4_1",
+    "optype3_batch1_in28_28_256_out28_28_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_96_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_512_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_7_1_block8_4_1",
+    "optype3_batch1_in14_14_512_out14_14_512_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_56_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_1024_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_112_1_block8_4_1",
+    "optype3_batch1_in7_7_1024_out7_7_1024_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in1_1_1024_out1_1_1001_filter1_1_pad0_0_stride1_1_activation0_bias1","type1_lsz1_16_1_block1_1_1",
+    /* resnet50 */
+    "optype3_batch1_in224_224_3_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1","type4_lsz4_16_1_block4_4_1",
+    "optype3_batch1_in56_56_64_out56_56_256_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_64_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_152_1_block8_4_1",
+    "optype3_batch1_in56_56_64_out56_56_64_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out56_56_64_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out28_28_512_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in56_56_256_out28_28_128_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_256_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_128_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in28_28_128_out28_28_512_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out28_28_128_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_88_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out14_14_1024_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_184_1_block8_4_1",
+    "optype3_batch1_in28_28_512_out14_14_256_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_80_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_256_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in14_14_256_out14_14_1024_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out14_14_256_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_8_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out7_7_2048_filter1_1_pad0_0_stride2_2_activation0_bias1","type5_lsz1_32_1_block8_4_1",
+    "optype3_batch1_in14_14_1024_out7_7_512_filter1_1_pad0_0_stride2_2_activation1_bias1","type5_lsz1_6_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_512_filter3_3_pad1_1_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in7_7_512_out7_7_2048_filter1_1_pad0_0_stride1_1_activation0_bias1","type5_lsz1_216_1_block8_4_1",
+    "optype3_batch1_in7_7_2048_out7_7_512_filter1_1_pad0_0_stride1_1_activation1_bias1","type5_lsz1_40_1_block8_4_1",
+    /* cts */
+    "optype3_batch1_in1_1_3_out1_1_3_filter1_1_pad0_0_stride1_1_activation0_bias1","type0_lsz4_4_4_block1_1_1",
+    "optype3_batch1_in2_3_3_out2_3_3_filter1_1_pad0_0_stride1_1_activation0_bias1","type0_lsz1_64_1_block1_1_1",
+    "optype3_batch1_in3_3_1_out2_2_1_filter2_2_pad0_0_stride1_1_activation0_bias1","type0_lsz1_16_1_block1_1_1",
+    "optype3_batch1_in8_8_3_out8_8_1_filter3_2_pad1_0_stride1_1_activation0_bias1","type0_lsz1_4_16_block1_1_1",
+    "optype3_batch1_in8_8_3_out6_7_1_filter3_2_pad0_0_stride1_1_activation0_bias1","type0_lsz4_4_4_block1_1_1",
+    "optype3_batch1_in8_8_3_out8_8_3_filter3_2_pad1_0_stride1_1_activation0_bias1","type0_lsz4_16_4_block1_1_1",
+    "optype3_batch1_in8_8_3_out6_7_3_filter3_2_pad0_0_stride1_1_activation0_bias1","type0_lsz1_1_16_block1_1_1",
+    "optype3_batch1_in224_224_3_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1","type4_lsz4_16_1_block4_4_1",
+    "optype3_batch1_in112_112_16_out112_112_16_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_40_1_block8_4_1",
+    "optype3_batch1_in56_56_16_out56_56_32_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_168_1_block8_4_1",
+    "optype3_batch1_in56_56_32_out56_56_32_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_192_1_block8_4_1",
+    "optype3_batch1_in28_28_32_out28_28_64_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_176_1_block8_4_1",
+    "optype3_batch1_in28_28_64_out28_28_64_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_16_1_block8_4_1",
+    "optype3_batch1_in14_14_64_out14_14_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_168_1_block8_4_1",
+    "optype3_batch1_in14_14_128_out14_14_128_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_112_1_block8_4_1",
+    "optype3_batch1_in7_7_128_out7_7_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_3_1_block8_4_1",
+    "optype3_batch1_in7_7_256_out7_7_256_filter1_1_pad0_0_stride1_1_activation3_bias1","type5_lsz1_6_1_block8_4_1",
+    "optype3_batch1_in1_1_256_out1_1_11_filter1_1_pad0_0_stride1_1_activation0_bias1","type1_lsz4_4_1_block1_1_1",
+    /* channel 3 to channel 4 transformed*/
+    "optype3_batch1_in1_1_4_out1_1_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz64_1_1_block1_1_1",
+    "optype3_batch1_in2_3_4_out2_3_3_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_4_1_block1_1_1",
+    "optype3_batch1_in8_8_4_out8_8_1_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz16_16_1_block1_1_1",
+    "optype3_batch1_in8_8_4_out6_7_1_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz1_4_4_block1_1_1",
+    "optype3_batch1_in8_8_4_out8_8_3_filter3_2_pad1_0_stride1_1_activation0_bias1", "type0_lsz4_64_1_block1_1_1",
+    "optype3_batch1_in8_8_4_out6_7_3_filter3_2_pad0_0_stride1_1_activation0_bias1", "type0_lsz256_1_1_block1_1_1",
+    "optype3_batch1_in224_224_4_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_248_1_block8_4_1",
+    "optype3_batch1_in224_224_4_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in224_224_4_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_56_1_block8_4_1",
+#endif
+};
+
 void computeConvOutputShapeAndPadding(const PaddingScheme& padding_mode,
                                       const uint32_t& in_h, const uint32_t& in_w,
                                       const uint32_t& filter_h, const uint32_t& filter_w,
@@ -94,6 +321,76 @@ static void prepareConfig(const Operation& operation, ShaderConfig& config)
     (void)(operation);
     (void)(config);
 }
+
+static std::string genConvSignature(const SpecializaitonConst& convParam)
+{
+    std::stringstream sig;
+    // Android NN desn't set has_bias, so assume has_bias = 1
+    int has_bias = 1;
+
+    sig << "optype"     << (int)OperationType::CONV_2D << "_"
+        << "batch"      << convParam.batch             << "_"
+        << "in"         << convParam.in_h              << "_" << convParam.in_w     << "_" << convParam.channels << "_"
+        << "out"        << convParam.out_h             << "_" << convParam.out_w    << "_" << convParam.n        << "_"
+        << "filter"     << convParam.filter_h          << "_" << convParam.filter_w << "_"
+        << "pad"        << convParam.pad_h             << "_" << convParam.pad_w    << "_"
+        << "stride"     << convParam.stride_h          << "_" << convParam.stride_w << "_"
+        << "activation" << convParam.activation        << "_"
+        << "bias"       << has_bias;
+
+    return sig.str();
+}
+
+static void string2Config(const char* confString, ShaderConfig &conf)
+{
+    int type = 0;
+    sscanf(confString, "type%d_lsz%d_%d_%d_block%d_%d_%d",
+           &type, &conf.local_size_x,  &conf.local_size_y, &conf.local_size_z,
+           &conf.block_width, &conf.block_height, &conf.block_depth);
+}
+
+static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConfig& conf)
+{
+    const std::string sig = genConvSignature(convParam);
+
+    mtx.lock();
+
+    // load default configs and get vulkan info
+    if (!is_initialized)
+    {
+        NN_GPU_DEBUG("prepareShaderConfig: init shaderConfigMap for vulkan backend shader");
+        int configNum = 0;
+        if (sizeof(defaultConfig) > 0)
+        {
+            configNum = sizeof(defaultConfig) / sizeof(defaultConfig[0]) / 2;
+        }
+        for (int i = 0; i < configNum; i++)
+        {
+            ShaderConfigPair entry(defaultConfig[2 * i], defaultConfig[2 * i + 1]);
+            shaderConfigMap.insert(entry);
+            NN_GPU_PERF("CONV_2D: %s: load pre-tuned config: %s, %s\n", __func__, defaultConfig[2 * i], defaultConfig[2 * i + 1]);
+        }
+        NN_GPU_DEBUG("prepareShaderConfig: shaderConfigMap is initialized");
+        is_initialized = true;
+    }
+
+    // search in-memory cache
+    ShaderConfigMap::iterator it = shaderConfigMap.find(sig);
+    if (it != shaderConfigMap.end())
+    {
+        NN_GPU_PERF("CONV_2D: %s: found config %s, %s\n", __func__, sig.c_str(), it->second.c_str());
+        string2Config(it->second.c_str(), conf);
+        mtx.unlock();
+        return;
+    }
+
+    // todo: load from persistent storage & tuning
+    NN_GPU_PERF("CONV_2D: %s: config cannot be found from in-memory cache", __func__);
+
+    mtx.unlock();
+}
+
+
 
 bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 {
@@ -126,20 +423,6 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
                                    out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth],
                                    filter_shape[kShapeIdxHeight], filter_shape[kShapeIdxWidth],
                                    in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], M, K, N);
-
-    // todo: need a wrapper, just for 3*3*1 && 3*3*2 input here.
-    spec_const.local_sz_x = 1;
-    spec_const.local_sz_y = 16;
-
-    // todo: auto prepare
-    if (in_shape[kShapeIdxChannel] == 1)
-    {
-        spec_const.local_sz_z = 1;
-    }
-    else
-    {
-        spec_const.local_sz_z = 4;
-    }
 
     PushConst push_const;
 
@@ -183,6 +466,14 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
             calculateExplicitPadding(spec_const.in_h, spec_const.stride_h, spec_const.filter_h,
                                      padding_mode, &spec_const.pad_h);
         }
+
+        // prepare shader config
+        prepareShaderConfig(spec_const, config);
+
+        // get local size x/y/z from config
+        spec_const.local_sz_x = config.local_size_x;
+        spec_const.local_sz_y = config.local_size_y;
+        spec_const.local_sz_z = config.local_size_z;
 
 #define SPEC_CONST_NUM 19
         VkSpecializationMapEntry entry[SPEC_CONST_NUM];
@@ -233,7 +524,7 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         spec_const.pad_h, spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels, spec_const.batch,
         spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
 
-    NN_GPU_DEBUG("bind operands");
+    NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: bind operands");
     opBase->bindOperand(in, 0, opBase->descriptor_set);
     opBase->bindOperand(filter, 1, opBase->descriptor_set);
     opBase->bindOperand(bias, 2, opBase->descriptor_set);
