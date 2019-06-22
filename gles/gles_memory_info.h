@@ -41,6 +41,7 @@ public:
     void clean();
     void setNeedSync() { needSync = true; }
     void setNotInUsing();
+    void dump();
     void incRef() { refCount++; }
     void resetRef() { refCount = 0;}
     void shareFrom(GlesMemoryInfo* from) { ssbo = from->ssbo; from->incRef();}

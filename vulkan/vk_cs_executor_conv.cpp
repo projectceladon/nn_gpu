@@ -544,6 +544,7 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         }
     }
 
+    //out.dump();
     return true;
 }
 
@@ -560,6 +561,8 @@ bool VkCsExecutor::doCONV_2D(const Operation& operation)
     ShaderConfig config = {1, 16, 1, 1, 1, 1};
     prepareConfig(operation, config);
     ret = convolve(operation, config);
+    if (!ret)
+        LOGE("failed to call convolve function");
 
     NN_GPU_EXIT();
     return ret;

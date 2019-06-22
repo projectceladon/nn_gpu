@@ -38,6 +38,11 @@ bool GlesOperand::setArg(const RequestArgument& from)
     return true;
 }
 
+void GlesOperand::dump()
+{
+    memInfo->dump();
+}
+
 void GlesOperand::restore(const Operand& from)
 {
     switch (from.lifetime)

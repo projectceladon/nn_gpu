@@ -315,6 +315,7 @@ bool GlesCsExecutor::run(const Operation& operation, OperationCpuTimer* timer, G
 
 #define SETUP_OP(op)                \
     case OperationType::op:         \
+        LOGD("run operation type with %d", OperationType::op); \
         ret = do##op(operation, resource);    \
         break;
 #include "gles_setup_op.hxx"

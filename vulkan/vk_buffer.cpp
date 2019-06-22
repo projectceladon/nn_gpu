@@ -81,11 +81,19 @@ void Buffer::dump()
 {
     if (memory != VK_NULL_HANDLE) {
         uint8_t* data;
+
         VK_CHECK_RESULT(vkMapMemory(device, memory, 0, length, 0, (void **)&data));
         NN_GPU_DEBUG("call %s, userptr data is %f, size_in_bytes is %zu",
             __func__, 
             *(reinterpret_cast<const float *>(data)),
             length);
+        // only dump the first 16 bytes
+        for (size_t i = 0; i < 15; ++i)
+        {
+            NN_GPU_DEBUG("dumpped out buffer content is: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+        }
         vkUnmapMemory(device, memory);
     }
 }

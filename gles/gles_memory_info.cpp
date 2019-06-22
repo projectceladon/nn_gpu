@@ -23,6 +23,19 @@ void GlesMemoryInfo::setNotInUsing()
     }
 }
 
+void GlesMemoryInfo::dump()
+{
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    //only dump 16 bytes
+    uint8_t* p = (uint8_t*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, 16, GL_MAP_READ_BIT);
+    for (size_t i = 0; i < 15; ++i)
+    {
+        LOGD("dumpped out buffer content: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
+            p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+    }
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+}
+
 bool GlesMemoryInfo::sync(std::string name)
 {
     if (needSync)

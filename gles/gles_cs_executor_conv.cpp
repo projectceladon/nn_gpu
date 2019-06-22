@@ -1295,9 +1295,19 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
         outSSbo = output.getSSbo();
 
         prepareShaderConfig(convParam, shaderConf, progMgr, inSSbo, filterSSbo, biasSSbo, outSSbo);
+
+        NN_GPU_DEBUG("convParam batch %d, input_height %d, input_width %d, input_chn %d, output_height %d, output_width %d, output_chn %d, "
+                "filter_height %d, filter_width %d, stride_height %d, stride_width %d, padding_height %d, padding_width %d,"
+                "activation %d, has_bias %d",
+                convParam.batch, convParam.inH, convParam.inW, convParam.inC, convParam.outH, convParam.outW, convParam.outC,
+                convParam.filterH, convParam.filterW, convParam.strideH, convParam.strideW, convParam.padH, convParam.padW,
+                convParam.activation, convParam.hasBias);
+
         convolve(convParam, shaderConf, progMgr);
         if (needSync)
             glFinish();
+
+        //output.dump();
     }
     else
     {

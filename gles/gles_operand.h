@@ -62,6 +62,8 @@ public:
         return type;
     }
 
+    void dump();
+
 private:
     size_t getBasicTypeSize();
 
