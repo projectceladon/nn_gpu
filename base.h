@@ -20,26 +20,35 @@ namespace implementation {
 
 static const char* kTAG = "NN_GPU_HAL";
 
+#define NN_TRACE 0
+
 #define NN_GPU_ENTRY()                                                  \
-  do {                                                                  \
-      LOG(ERROR) << "NN_GPU_HAL enter: " << __FUNCTION__ << "\n";       \
-  } while(0);
+    do {                                                                \
+        if (NN_TRACE)                                                   \
+            LOG(INFO) << "NN_GPU_HAL enter: " << __FUNCTION__;          \
+    } while(0);
 
 #define NN_GPU_EXIT()                                                   \
     do {                                                                \
-        LOG(ERROR) << "NN_GPU_HAL exit: " << __FUNCTION__ << "\n";      \
+        if (NN_TRACE)                                                   \
+            LOG(INFO) << "NN_GPU_HAL exit: " << __FUNCTION__;           \
     } while(0);
 
 #define NN_GPU_CALL()                                                   \
         do {                                                            \
-            LOG(ERROR) << "NN_GPU_HAL call: " << __FUNCTION__ << "\n";  \
+            if (NN_TRACE)                                               \
+                LOG(INFO) << "NN_GPU_HAL call: " << __FUNCTION__;       \
         } while(0);
 
+#define NN_DEBUG 0
 #define NN_GPU_DEBUG(...) \
-          ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
+        if (NN_DEBUG) \
+            ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
 
+#define NN_PERF 0
 #define NN_GPU_PERF(...) \
-          ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
+        if (NN_PERF) \
+            ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
 
 // Android log function wrappers
 
@@ -71,10 +80,10 @@ static const char* kTAG = "NN_GPU_HAL";
               return false;                                                     \
             }                                                                   \
           } while(0);
-        
+
 #define NN_CHECK_EQ(actual, expected)           \
           NN_CHECK((actual) == (expected))
-        
+
 #define NN_OPS_CHECK NN_CHECK
 
 #define CHECKGLERROR()                                              \
@@ -85,16 +94,16 @@ static const char* kTAG = "NN_GPU_HAL";
                     LOGE("glGetError returns error 0x%x at %s:%d", err, __FILE__, __LINE__); \
                 }                                                   \
             } while(0);
-        
-#define CHECK_GL_STATE_RET() \
-        {\
-            GLenum err = glGetError(); \
-            if (err != GL_NO_ERROR) \
-            {\
+
+#define CHECK_GL_STATE_RET()                                        \
+        {                                                           \
+            GLenum err = glGetError();                              \
+            if (err != GL_NO_ERROR)                                 \
+            {                                                       \
                 LOGE("glGetError returns %d, func:%s, line: %d\n", err, __func__, __LINE__); \
-                return false; \
-            }\
-            return true;\
+                return false;                                       \
+            }                                                       \
+            return true;                                            \
         }
 
 // Vulkan call wrapper
@@ -106,40 +115,40 @@ static const char* kTAG = "NN_GPU_HAL";
     assert(false);                                                    \
   }
 
-#define VK_CHECK_RESULT(f) \
-{ \
-        if (f != VK_SUCCESS) \
-        { \
+#define VK_CHECK_RESULT(f)                               \
+{                                                        \
+        if (f != VK_SUCCESS)                             \
+        {                                                \
             LOGE("Vulkan check failed, result = %d", f); \
-        } \
+        }                                                \
 }
 
-#define VKCOM_CHECK_BOOL_RET_VAL(val, ret) \
-{ \
-    bool res = (val); \
-    if (!res) \
-    { \
-        LOGW(NULL, "Check bool failed"); \
-        return ret; \
-    } \
+#define VKCOM_CHECK_BOOL_RET_VAL(val, ret)               \
+{                                                        \
+    bool res = (val);                                    \
+    if (!res)                                            \
+    {                                                    \
+        LOGW(NULL, "Check bool failed");                 \
+        return ret;                                      \
+    }                                                    \
 }
 
-#define VKCOM_CHECK_POINTER_RET_VOID(p) \
-{ \
-    if (NULL == (p)) \
-    { \
-        LOGW(NULL, "Check pointer failed"); \
-        return; \
-    } \
+#define VKCOM_CHECK_POINTER_RET_VOID(p)                  \
+{                                                        \
+    if (NULL == (p))                                     \
+    {                                                    \
+        LOGW(NULL, "Check pointer failed");              \
+        return;                                          \
+    }                                                    \
 }
 
-#define VKCOM_CHECK_POINTER_RET_VAL(p, val) \
-{ \
-    if (NULL == (p)) \
-    { \
-        LOGW(NULL, "Check pointer failed"); \
-        return (val); \
-    } \
+#define VKCOM_CHECK_POINTER_RET_VAL(p, val)              \
+{                                                        \
+    if (NULL == (p))                                     \
+    {                                                    \
+        LOGW(NULL, "Check pointer failed");              \
+        return (val);                                    \
+    }                                                    \
 }
 
 #endif

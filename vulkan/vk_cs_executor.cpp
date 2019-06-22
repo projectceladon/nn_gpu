@@ -345,6 +345,7 @@ bool VkCsExecutor::run(const Operation& operation, OperationCpuTimer* timer)
 
 #define SETUP_OP(op)                \
     case OperationType::op:         \
+        LOGD("run operation type with %d", OperationType::op); \
         ret = do##op(operation);    \
         break;
 #include "vk_setup_op.hxx"
