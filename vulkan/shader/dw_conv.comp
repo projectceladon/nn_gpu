@@ -63,7 +63,7 @@ void main()
 
     if (gx < OUT_W && gy < OUT_H)
     {
-        float sum[1];  // todo: array size got from p.DEPTH_MULTIPLIER
+        float sum[1];
         for (int outz = 0; outz < DEPTH_MULTIPLIER; outz++)
         {
             sum[outz] = 0.0f;
@@ -105,7 +105,7 @@ void main()
                 if (gz + outz < N)
                 {
                     int offset = out_buffer_offset + (gy * OUT_W  + gx) * N + gz + outz;
-                    out_buffer[offset] = sum[outz] + bias_data[bias_off +outz]; // TODO: add ACTIVATION_FUNCTION
+                    out_buffer[offset] = activation(sum[outz] + bias_data[bias_off +outz]);
                 }
             }
         }
