@@ -19,15 +19,22 @@ layout (constant_id = 16) const int K = 0;
 layout (constant_id = 17) const int N = 0;
 layout (constant_id = 18) const int ACTIVATION = 0;
 
-#define ACTIVATION_FUNCTION(x)     \
-{                                  \
-    if (p.ACTIVATION == 1)         \
-      x = max(x, 0.0);             \
-    else if (p.ACTIVATION == 2)    \
-      x = clamp(x, -1.0, 1.0);     \
-    else if (p.ACTIVATION == 3)    \
-      x = clamp(x, 0.0, 6.0);      \
+float activation(float x)
+{
+  if (ACTIVATION == 1) {
+    return ((x) < 0.f ? 0.f : (x));
+  }
+  else if (ACTIVATION == 2) {
+    return ((x) > 1.f ? 1.f : (x) < -1.f ? -1.f : (x));
+  }
+  else if (ACTIVATION == 3) {
+    return ((x) > 6.f ? 6.f : (x) < 0.f ? 0.f : (x));
+  }
+  else {
+    return x;
+  }
 }
+
 
 layout(binding = 0) readonly buffer Input0 {
     float image_data[];
@@ -82,7 +89,6 @@ void main()
         }
 
         int offset = output_offset + gy * N + gx;
-        // todo: add activation
-        convolved_image_data[offset] = sum + bias_data[gx];
+        convolved_image_data[offset] = activation(sum + bias_data[gx]);
     }
 }

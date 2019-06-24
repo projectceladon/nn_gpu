@@ -441,8 +441,6 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
             spec_const.stride_h     = operands[ins[8]].getScalarData<uint32_t>();
             spec_const.activation   = operands[ins[9]].getScalarData<uint32_t>();
 
-            // assert(spec_const.activation == 0);  todo: add activation
-
             if (padding_left == 0 && padding_top == 0)
             {
                 padding_mode = kPaddingValid;

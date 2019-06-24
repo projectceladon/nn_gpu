@@ -36,6 +36,22 @@ layout(binding = 3) writeonly buffer Output{
     float out_buffer[];
 };
 
+float activation(float x)
+{
+  if (ACTIVATION == 1) {
+    return ((x) < 0.f ? 0.f : (x));
+  }
+  else if (ACTIVATION == 2) {
+    return ((x) > 1.f ? 1.f : (x) < -1.f ? -1.f : (x));
+  }
+  else if (ACTIVATION == 3) {
+    return ((x) > 6.f ? 6.f : (x) < 0.f ? 0.f : (x));
+  }
+  else {
+    return x;
+  }
+}
+
 layout(local_size_x_id = 0, local_size_y_id = 1, local_size_z_id = 2) in;
 
 void main()
@@ -100,7 +116,7 @@ void main()
                 if (gz + outz < N)
                 {
                     int offset = out_buffer_offset + (gy * OUT_W + gx) * N + gz + outz;
-                    out_buffer[offset] = sum[outz];  // todo: add ACTIVATION_FUNCTION
+                    out_buffer[offset] = activation(sum[outz]);
                 }
             }
         }
