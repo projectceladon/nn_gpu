@@ -41,6 +41,7 @@ public:
     ~VkOperand() {}
 
     bool set(const Operand& from, uint8_t* vp, uint32_t index);
+    void reset(const int width, const int height, const int channel);
     void restore(const Operand& from);
     bool setArg(const RequestArgument& from);
     void shareGpuStorage(VkOperand& shareFrom);

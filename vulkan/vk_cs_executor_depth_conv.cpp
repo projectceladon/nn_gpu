@@ -221,10 +221,7 @@ bool VkCsExecutor::depthConvolve(const Operation& operation, ShaderConfig& confi
     {
         for (int n = 0;  n < partition_num; n++)
         {
-            NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: do recordCommandBuffer");
             opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
-
-            NN_GPU_DEBUG("VkCsExecutor::doDEPTHWISE_CONV_2D: do runCommandBuffer");
             opBase->runCommandBuffer();
         }
     }

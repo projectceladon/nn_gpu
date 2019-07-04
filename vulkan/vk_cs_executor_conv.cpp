@@ -30,12 +30,16 @@ NAME_SPACE_BEGIN
 #define MAX_GROUP_COUNT_Y 65535
 #define MAX_GROUP_COUNT_Z 65535
 
+#define SPEC_CONST_NUM 20
+#define ITEMS_PER_WI 16
+
 using ShaderConfigPair = std::pair<std::string, std::string>;
 using ShaderConfigMap  = std::map<std::string, std::string>;
 
 static std::mutex mtx;
 static ShaderConfigMap shaderConfigMap;
 static bool is_initialized = false;
+static int tmpBoSize = 0;
 
 struct PushConst {
 public:
@@ -70,6 +74,7 @@ public:
     int k;
     int n;
     int activation;
+    int num_items;    // for chn3tochn4
 };
 
 static const char* defaultConfig[] =
@@ -292,6 +297,19 @@ static const char* defaultConfig[] =
 #endif
 };
 
+static bool chn3ToChn4(SpecializaitonConst& param, ShaderConfig& config)
+{
+    param.local_sz_x   = 16;
+    param.local_sz_y   = 1;
+    param.local_sz_z   = 1;
+
+    config.block_width  = ITEMS_PER_WI;
+    config.block_height = 1;
+    config.block_depth  = 1;
+
+    return true;
+}
+
 void computeConvOutputShapeAndPadding(const PaddingScheme& padding_mode,
                                       const uint32_t& in_h, const uint32_t& in_w,
                                       const uint32_t& filter_h, const uint32_t& filter_w,
@@ -391,6 +409,39 @@ static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConf
 }
 
 
+static void setSpecInfo(VkSpecializationMapEntry* entry,
+                        VkSpecializationInfo& spec_info,
+                        const SpecializaitonConst &spec_const,
+                        const int entry_size)
+{
+    SET_SPEC_CONST_ENTRY(entry[0], 0, offsetof(SpecializaitonConst, local_sz_x), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[1], 1, offsetof(SpecializaitonConst, local_sz_y), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[2], 2, offsetof(SpecializaitonConst, local_sz_z), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[3], 3, offsetof(SpecializaitonConst, in_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[4], 4, offsetof(SpecializaitonConst, in_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[5], 5, offsetof(SpecializaitonConst, out_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[6], 6, offsetof(SpecializaitonConst, out_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[7], 7, offsetof(SpecializaitonConst, stride_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[8], 8, offsetof(SpecializaitonConst, stride_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[9], 9, offsetof(SpecializaitonConst, pad_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[10], 10, offsetof(SpecializaitonConst, pad_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[11], 11, offsetof(SpecializaitonConst, filter_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[12], 12, offsetof(SpecializaitonConst, filter_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[13], 13, offsetof(SpecializaitonConst, channels), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[14], 14, offsetof(SpecializaitonConst, batch), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[15], 15, offsetof(SpecializaitonConst, m), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[16], 16, offsetof(SpecializaitonConst, k), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(SpecializaitonConst, n), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(SpecializaitonConst, activation), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[19], 19, offsetof(SpecializaitonConst, num_items), sizeof(int));
+
+    spec_info.mapEntryCount = entry_size;
+    spec_info.pMapEntries   = entry;
+    spec_info.dataSize      = sizeof(spec_const);
+    spec_info.pData         = &spec_const;
+
+    return;
+}
 
 bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 {
@@ -457,51 +508,117 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
             spec_const.stride_h   = operands[ins[5]].getScalarData<uint32_t>();
             spec_const.activation = operands[ins[6]].getScalarData<uint32_t>();
 
-            assert(spec_const.activation == 0);
-
             calculateExplicitPadding(spec_const.in_w, spec_const.stride_w, spec_const.filter_w,
                                      padding_mode, &spec_const.pad_w);
             calculateExplicitPadding(spec_const.in_h, spec_const.stride_h, spec_const.filter_h,
                                      padding_mode, &spec_const.pad_h);
         }
 
+        if (spec_const.channels == 3)
+        {
+            uint32_t filter_size    = spec_const.channels * spec_const.filter_w * spec_const.filter_h * spec_const.n;
+            uint32_t input_size     = spec_const.channels * spec_const.in_w * spec_const.in_h * spec_const.n;
+            uint32_t total_thread_x = 0;
+
+            VkOperand chn4_filter      = filter;
+            VkOperand chn4_in          = in;
+            const int new_channel_size = 4;
+
+            opBase->rebindVkBuffer(chn4_filter, spec_const.filter_w, spec_const.filter_h, new_channel_size);
+            opBase->rebindVkBuffer(chn4_in, spec_const.in_w, spec_const.in_h, new_channel_size);
+
+            // first off, convert filter to 4 channels
+            if (tmpBoSize == 0)
+            {
+                total_thread_x = alignSize(filter_size, ITEMS_PER_WI) / ITEMS_PER_WI;
+                chn3ToChn4(spec_const, config);
+
+                int group_x = opBase->computeGroupCountX(total_thread_x, spec_const.local_sz_x, spec_const.local_sz_x);
+                opBase->setGroupSize(group_x, 1, 1);
+
+                ++tmpBoSize;
+
+                VkSpecializationMapEntry entry[SPEC_CONST_NUM];
+                VkSpecializationInfo spec_info;
+                setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
+
+                opBase->createShaderModule(conv_chn3to4_spv, sizeof(conv_chn3to4_spv));
+                opBase->createPipeline(sizeof(PushConst), &spec_info);
+
+                opBase->bindOperand(filter, 0, opBase->descriptor_set);
+                opBase->bindOperand(chn4_filter, 1, opBase->descriptor_set);
+
+                int partition_num = (int)ceil(1.0 * N / opBase->group_y);
+
+                for (uint32_t b = 0; b < filter_shape[kShapeIdxBatch]; b++)
+                {
+                    for (int n = 0; n < partition_num; n++)
+                    {
+                        opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                        opBase->runCommandBuffer();
+                    }
+                }
+
+                chn4_filter.dump();
+            }
+
+            // then, convert input
+            total_thread_x = alignSize(input_size, ITEMS_PER_WI) / ITEMS_PER_WI;
+            chn3ToChn4(spec_const, config);
+
+            int group_x = opBase->computeGroupCountX(total_thread_x, spec_const.local_sz_x, spec_const.local_sz_x);
+            opBase->setGroupSize(group_x, 1, 1);
+            --tmpBoSize;
+
+            VkSpecializationMapEntry entry[SPEC_CONST_NUM];
+            VkSpecializationInfo spec_info;
+            setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
+
+            opBase->createShaderModule(conv_chn3to4_spv, sizeof(conv_chn3to4_spv));
+            opBase->createPipeline(sizeof(PushConst), &spec_info);
+
+            opBase->bindOperand(in, 0, opBase->descriptor_set);
+            opBase->bindOperand(chn4_in, 1, opBase->descriptor_set);
+
+            int partition_num = (int)ceil(1.0 * N / opBase->group_y);
+
+            for (uint32_t b = 0; b < filter_shape[kShapeIdxBatch]; b++)
+            {
+                for (int n = 0; n < partition_num; n++)
+                {
+                    opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                    opBase->runCommandBuffer();
+                }
+            }
+            chn4_in.dump();
+
+            spec_const.channels = 4;
+
+            // bind the converted channel 4 operands
+            opBase->bindOperand(chn4_in, 0, opBase->descriptor_set);
+            opBase->bindOperand(chn4_filter, 1, opBase->descriptor_set);
+        }
+        else
+        {
+            // bind the original input & filter
+            opBase->bindOperand(in, 0, opBase->descriptor_set);
+            opBase->bindOperand(filter, 1, opBase->descriptor_set);
+        }
+
+        // chn3ToChn4 is just for input & filter, no need to convert bias & output
+        opBase->bindOperand(bias, 2, opBase->descriptor_set);
+        opBase->bindOperand(out, 3, opBase->descriptor_set);
+
         // prepare shader config
         prepareShaderConfig(spec_const, config);
 
-        // get local size x/y/z from config
         spec_const.local_sz_x = config.local_size_x;
         spec_const.local_sz_y = config.local_size_y;
         spec_const.local_sz_z = config.local_size_z;
 
-#define SPEC_CONST_NUM 19
-        VkSpecializationMapEntry entry[SPEC_CONST_NUM];
-
-        SET_SPEC_CONST_ENTRY(entry[0], 0, offsetof(SpecializaitonConst, local_sz_x), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[1], 1, offsetof(SpecializaitonConst, local_sz_y), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[2], 2, offsetof(SpecializaitonConst, local_sz_z), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[3], 3, offsetof(SpecializaitonConst, in_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[4], 4, offsetof(SpecializaitonConst, in_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[5], 5, offsetof(SpecializaitonConst, out_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[6], 6, offsetof(SpecializaitonConst, out_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[7], 7, offsetof(SpecializaitonConst, stride_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[8], 8, offsetof(SpecializaitonConst, stride_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[9], 9, offsetof(SpecializaitonConst, pad_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[10], 10, offsetof(SpecializaitonConst, pad_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[11], 11, offsetof(SpecializaitonConst, filter_h), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[12], 12, offsetof(SpecializaitonConst, filter_w), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[13], 13, offsetof(SpecializaitonConst, channels), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[14], 14, offsetof(SpecializaitonConst, batch), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[15], 15, offsetof(SpecializaitonConst, m), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[16], 16, offsetof(SpecializaitonConst, k), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(SpecializaitonConst, n), sizeof(int));
-        SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(SpecializaitonConst, activation), sizeof(int));
-
         VkSpecializationInfo spec_info;
-
-        spec_info.mapEntryCount = SPEC_CONST_NUM;
-        spec_info.pMapEntries   = entry;
-        spec_info.dataSize      = sizeof(spec_const);
-        spec_info.pData         = &spec_const;
+        VkSpecializationMapEntry entry[SPEC_CONST_NUM];
+        setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
 
         NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: run createShaderModule");
         opBase->createShaderModule(conv_spv, sizeof(conv_spv));
@@ -514,19 +631,13 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     opBase->group_y = alignSize(alignSize(M, config.block_height) / config.block_height, spec_const.local_sz_y) / spec_const.local_sz_y;
     opBase->group_z = alignSize(alignSize(spec_const.batch, config.block_depth), spec_const.local_sz_z) / spec_const.local_sz_z;
 
-    NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d"
-        "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, filter_h %d, filter_w %d"
-        "channels %d, batch %d, m %d, k %d, n %d, activation %d",
-        spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y, opBase->group_z,
-        spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w, spec_const.stride_h, spec_const.stride_w,
-        spec_const.pad_h, spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels, spec_const.batch,
-        spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
-
-    NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: bind operands");
-    opBase->bindOperand(in, 0, opBase->descriptor_set);
-    opBase->bindOperand(filter, 1, opBase->descriptor_set);
-    opBase->bindOperand(bias, 2, opBase->descriptor_set);
-    opBase->bindOperand(out, 3, opBase->descriptor_set);
+    NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d, "
+                 "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, filter_h %d, filter_w %d, "
+                 "channels %d, batch %d, m %d, k %d, n %d, activation %d",
+                spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y, opBase->group_z,
+                spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w, spec_const.stride_h, spec_const.stride_w,
+                spec_const.pad_h, spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels, spec_const.batch,
+                spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
 
     int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
@@ -534,15 +645,12 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     {
         for (int n = 0; n < partition_num; n++)
         {
-            NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: do recordCommandBuffer");
             opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
-
-            NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: do runCommandBuffer");
             opBase->runCommandBuffer();
         }
     }
 
-    //out.dump();
+    out.dump();
     return true;
 }
 

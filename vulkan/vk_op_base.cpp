@@ -294,4 +294,17 @@ bool VkOpBase::computeGroupCountX(uint32_t totalThreadX, int preferLocalSizeX, i
     return false;
 }
 
+void VkOpBase::setGroupSize(const int gx, const int gy, const int gz)
+{
+    group_x = gx;
+    group_y = gy;
+    group_z = gz;
+}
+
+void VkOpBase::rebindVkBuffer(VkOperand& operand, const int w, const int h, const int c)
+{
+    operand.reset(w, h, c);
+    return;
+}
+
 NAME_SPACE_STOP
