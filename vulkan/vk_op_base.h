@@ -42,6 +42,8 @@ protected:
     void recordCommandBuffer(void* push_constants = NULL, size_t push_constants_size = 0);
     void runCommandBuffer();
     bool computeGroupCountX(uint32_t totalThreadX, int preferLocalSizeX, int& localSizeX);
+    void setGroupSize(const int gx, const int gy, const int gz);
+    void rebindVkBuffer(VkOperand& operand, const int w, const int h, const int c);
 
     VkPipeline pipeline;
     VkCommandBuffer cmd_buffer;

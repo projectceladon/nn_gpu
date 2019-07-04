@@ -23,6 +23,22 @@
 
 NAME_SPACE_BEGIN
 
+void VkOperand::reset(const int width, const int height, const int channel)
+{
+    dimensions[kShapeIdxHeight]  = height;
+    dimensions[kShapeIdxWidth]   = width;
+    dimensions[kShapeIdxChannel] = channel;
+
+    length   = getElementCount() * getBasicTypeSize();
+    lifetime = OperandLifeTime::TEMPORARY_VARIABLE;
+    memInfo  = nullptr;
+    valPtr   = nullptr;
+
+    getVkBuffer();
+
+    return;
+}
+
 bool VkOperand::setArg(const RequestArgument& from)
 {
     NN_GPU_ENTRY();

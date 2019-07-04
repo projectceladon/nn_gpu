@@ -18,6 +18,7 @@ layout (constant_id = 15) const int M = 0;
 layout (constant_id = 16) const int K = 0;
 layout (constant_id = 17) const int N = 0;
 layout (constant_id = 18) const int ACTIVATION = 0;
+layout (constant_id = 19) const int NUM_ITEMS = 0;
 
 float activation(float x)
 {
