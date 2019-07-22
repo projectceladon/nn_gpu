@@ -51,6 +51,8 @@ vulkan/shader/logistic_spv.cpp \
 vulkan/shader/softmax_spv.cpp \
 vulkan/shader/avg_pool_spv.cpp \
 vulkan/shader/conv_chn3to4_spv.cpp \
+vulkan/shader/conv_gemmShader4_8_spv.cpp \
+vulkan/shader/conv_gemm1_spv.cpp \
 vulkan/shader/max_pool_spv.cpp \
 vulkan/shader/lrn_spv.cpp \
 gles/gles_cs_executor.cpp \
