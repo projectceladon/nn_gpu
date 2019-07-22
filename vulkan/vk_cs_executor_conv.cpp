@@ -33,6 +33,19 @@ NAME_SPACE_BEGIN
 #define SPEC_CONST_NUM 20
 #define ITEMS_PER_WI 16
 
+enum ConvShaderType
+{
+    CONV_SHADER_TYPE_BASIC               = 0,
+    CONV_SHADER_TYPE_GEMM1               = 1,
+    CONV_SHADER_TYPE_GEMM_4_4_NO_IMG2COL = 2,
+    CONV_SHADER_TYPE_GEMM_4_4_GENERIC    = 3,
+    CONV_SHADER_TYPE_GEMM_4_4_CHN3       = 4,
+    CONV_SHADER_TYPE_GEMM_4_8_GENERIC    = 5,
+    CONV_SHADER_TYPE_CHN3_TO_CHN4        = 6,
+    CONV_SHADER_TYPE_NUM                 = 7
+};
+
+
 using ShaderConfigPair = std::pair<std::string, std::string>;
 using ShaderConfigMap  = std::map<std::string, std::string>;
 
@@ -40,6 +53,8 @@ static std::mutex mtx;
 static ShaderConfigMap shaderConfigMap;
 static bool is_initialized = false;
 static int tmpBoSize = 0;
+static int shader_type = CONV_SHADER_TYPE_BASIC;
+
 
 struct PushConst {
 public:
@@ -297,6 +312,62 @@ static const char* defaultConfig[] =
 #endif
 };
 
+static bool computeGroupCount(int& gx, int& gy, int& gz, const int type,
+                              const SpecializaitonConst& param, const ShaderConfig& conf)
+{
+    switch (type)
+    {
+    case CONV_SHADER_TYPE_BASIC: {
+        gx = alignSize(alignSize(param.n, conf.block_width) / conf.block_width, param.local_sz_x) / param.local_sz_x;
+        gy = alignSize(alignSize(param.m, conf.block_height) / conf.block_height, param.local_sz_y) / param.local_sz_y;
+        gz = alignSize(alignSize(param.batch, conf.block_depth), param.local_sz_z) / param.local_sz_z;
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM1: {
+        ASSERT(conf.block_width == 1 && conf.block_height == 1 && conf.block_depth == 1 && conf.local_size_z == 1);
+        gx = alignSize(param.n, conf.local_size_x) / conf.local_size_x;
+        gy = alignSize(param.m, conf.local_size_y) / conf.local_size_y;
+        gz = param.batch;
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM_4_4_NO_IMG2COL: {
+        ASSERT(conf.block_width == 4 && conf.block_height == 4 && conf.block_depth == 1 && conf.local_size_z == 1);
+        gx = alignSize(param.n / 4, conf.local_size_x) / conf.local_size_x;
+        gy = alignSize(alignSize(param.m, 4) / 4, conf.local_size_y) / conf.local_size_y;
+        gz = param.batch;
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM_4_4_GENERIC: {
+        ASSERT(conf.block_width == 4 && conf.block_height == 4 && conf.block_depth == 1 && conf.local_size_z == 1);
+        gx = alignSize(param.n / 4, conf.local_size_x) / conf.local_size_x;
+        gy = alignSize(alignSize(param.m, 4) / 4, conf.local_size_y) / conf.local_size_y;
+        gz = param.batch;
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM_4_8_GENERIC: {
+        ASSERT(conf.block_width == 8 && conf.block_height == 4 && conf.block_depth == 1 && conf.local_size_z == 1);
+        gx = alignSize(param.n / conf.block_width, conf.local_size_x) / conf.local_size_x;
+        gy = alignSize(alignSize(param.m, 4) / 4, conf.local_size_y) / conf.local_size_y;
+        gz = param.batch;
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM_4_4_CHN3: {
+        ASSERT(param.m % 4 == 0 && conf.block_width == 4);
+        ASSERT(conf.block_height == 4 && conf.block_depth == 1 && conf.local_size_z == 1);
+        gx = alignSize(param.n / 4, conf.local_size_x) / conf.local_size_x;
+        gy = alignSize(param.m / 4, conf.local_size_y) / conf.local_size_y;
+        gz = param.batch;
+        break;
+    }
+    default:
+        NOT_REACH_HERE;
+        break;
+    }
+
+    // todo: validates group size
+    return true;
+}
+
 static bool chn3ToChn4(SpecializaitonConst& param, ShaderConfig& config)
 {
     param.local_sz_x   = 16;
@@ -361,10 +432,14 @@ static std::string genConvSignature(const SpecializaitonConst& convParam)
 
 static void string2Config(const char* confString, ShaderConfig &conf)
 {
-    int type = 0;
     sscanf(confString, "type%d_lsz%d_%d_%d_block%d_%d_%d",
-           &type, &conf.local_size_x,  &conf.local_size_y, &conf.local_size_z,
+           &shader_type, &conf.local_size_x,  &conf.local_size_y, &conf.local_size_z,
            &conf.block_width, &conf.block_height, &conf.block_depth);
+
+    NN_GPU_DEBUG("CONV_2D: string2Config shader type is %d, local_size_x %d, local_size_y %d, local_size_z %d, "
+                 "block_width %d, block_height %d, block_depth %d",
+                 shader_type, conf.local_size_x, conf.local_size_y,
+                 conf.local_size_z, conf.block_width, conf.block_height, conf.block_depth);
 }
 
 static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConfig& conf)
@@ -514,14 +589,16 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
                                      padding_mode, &spec_const.pad_h);
         }
 
+        // for chn3_to_chn4 convertion
+        VkOperand chn4_filter = filter;
+        VkOperand chn4_in     = in;
+
         if (spec_const.channels == 3)
         {
             uint32_t filter_size    = spec_const.channels * spec_const.filter_w * spec_const.filter_h * spec_const.n;
             uint32_t input_size     = spec_const.channels * spec_const.in_w * spec_const.in_h * spec_const.n;
             uint32_t total_thread_x = 0;
 
-            VkOperand chn4_filter      = filter;
-            VkOperand chn4_in          = in;
             const int new_channel_size = 4;
 
             opBase->rebindVkBuffer(chn4_filter, spec_const.filter_w, spec_const.filter_h, new_channel_size);
@@ -558,8 +635,6 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
                         opBase->runCommandBuffer();
                     }
                 }
-
-                chn4_filter.dump();
             }
 
             // then, convert input
@@ -590,10 +665,52 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
                     opBase->runCommandBuffer();
                 }
             }
-            chn4_in.dump();
 
+            spec_const.k = spec_const.k / 3 * 4;
             spec_const.channels = 4;
 
+        }
+
+        // prepare shader config
+        prepareShaderConfig(spec_const, config);
+
+        spec_const.local_sz_x = config.local_size_x;
+        spec_const.local_sz_y = config.local_size_y;
+        spec_const.local_sz_z = config.local_size_z;
+
+        VkSpecializationInfo spec_info;
+        VkSpecializationMapEntry entry[SPEC_CONST_NUM];
+        setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
+
+        switch (shader_type)
+        {
+        case CONV_SHADER_TYPE_GEMM_4_8_GENERIC: {
+            opBase->createShaderModule(conv_gemmShader4_8_spv, sizeof(conv_gemmShader4_8_spv));
+            opBase->createPipeline(sizeof(PushConst), &spec_info);
+            break;
+        }
+        case CONV_SHADER_TYPE_GEMM1: {
+            opBase->createShaderModule(conv_gemm1_spv, sizeof(conv_gemm1_spv));
+            opBase->createPipeline(sizeof(PushConst), &spec_info);
+            break;
+        }
+        case CONV_SHADER_TYPE_BASIC:
+        case CONV_SHADER_TYPE_GEMM_4_4_NO_IMG2COL:
+        case CONV_SHADER_TYPE_GEMM_4_4_GENERIC:
+        case CONV_SHADER_TYPE_GEMM_4_4_CHN3: {
+            // todo: shaders of gemm_4_4, gemm_no_mig2col and gemm_4_4_chn3 are not added yet
+            opBase->createShaderModule(conv_spv, sizeof(conv_spv));
+            opBase->createPipeline(sizeof(PushConst), &spec_info);
+            break;
+        }
+        case CONV_SHADER_TYPE_CHN3_TO_CHN4:
+        default:
+            NOT_REACH_HERE;
+            break;
+        }
+
+        if (spec_const.channels == 4)
+        {
             // bind the converted channel 4 operands
             opBase->bindOperand(chn4_in, 0, opBase->descriptor_set);
             opBase->bindOperand(chn4_filter, 1, opBase->descriptor_set);
@@ -608,36 +725,25 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         // chn3ToChn4 is just for input & filter, no need to convert bias & output
         opBase->bindOperand(bias, 2, opBase->descriptor_set);
         opBase->bindOperand(out, 3, opBase->descriptor_set);
-
-        // prepare shader config
-        prepareShaderConfig(spec_const, config);
-
-        spec_const.local_sz_x = config.local_size_x;
-        spec_const.local_sz_y = config.local_size_y;
-        spec_const.local_sz_z = config.local_size_z;
-
-        VkSpecializationInfo spec_info;
-        VkSpecializationMapEntry entry[SPEC_CONST_NUM];
-        setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
-
-        NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: run createShaderModule");
-        opBase->createShaderModule(conv_spv, sizeof(conv_spv));
-
-        NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: run createPipeline");
-        opBase->createPipeline(sizeof(PushConst), &spec_info);
     }
 
-    opBase->group_x = alignSize(alignSize(N, config.block_width) / config.block_width, spec_const.local_sz_x) / spec_const.local_sz_x;
-    opBase->group_y = alignSize(alignSize(M, config.block_height) / config.block_height, spec_const.local_sz_y) / spec_const.local_sz_y;
-    opBase->group_z = alignSize(alignSize(spec_const.batch, config.block_depth), spec_const.local_sz_z) / spec_const.local_sz_z;
+    // todo: should be moved to opBase
+    if (false == computeGroupCount(opBase->group_x, opBase->group_y, opBase->group_z, shader_type, spec_const, config))
+    {
+        NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: computeGroupCount failed");
+        return false;
+    }
+    // todo: duplicated, remove it
+    opBase->setGroupSize(opBase->group_x, opBase->group_y, opBase->group_z);
 
     NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d, "
-                 "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, filter_h %d, filter_w %d, "
-                 "channels %d, batch %d, m %d, k %d, n %d, activation %d",
-                spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y, opBase->group_z,
-                spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w, spec_const.stride_h, spec_const.stride_w,
-                spec_const.pad_h, spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels, spec_const.batch,
-                spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
+                 "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, "
+                 "filter_h %d, filter_w %d, channels %d, batch %d, m %d, k %d, n %d, activation %d",
+                 spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y,
+                 opBase->group_z, spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w,
+                 spec_const.stride_h, spec_const.stride_w, spec_const.pad_h, spec_const.pad_w, spec_const.filter_h,
+                 spec_const.filter_w, spec_const.channels, spec_const.batch, spec_const.m, spec_const.k, spec_const.n,
+                 spec_const.activation);
 
     int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
