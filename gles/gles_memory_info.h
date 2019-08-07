@@ -42,6 +42,7 @@ public:
     void setNeedSync() { needSync = true; }
     void setNotInUsing();
     void dump();
+    void dumpToFile(const char* fileName = "img_data", const int channels = 0);
     void incRef() { refCount++; }
     void resetRef() { refCount = 0;}
     void shareFrom(GlesMemoryInfo* from) { ssbo = from->ssbo; from->incRef();}

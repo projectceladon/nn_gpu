@@ -63,6 +63,7 @@ public:
     }
 
     void dump();
+    void dumpToFile(const char* fileName = "img_data", const int channels = 0);
 
 private:
     size_t getBasicTypeSize();
