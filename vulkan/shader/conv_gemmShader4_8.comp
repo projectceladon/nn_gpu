@@ -20,11 +20,11 @@ layout (constant_id = 16) const int K = 0;
 layout (constant_id = 17) const int N = 0;
 layout (constant_id = 18) const int ACTIVATION = 0;
 layout (constant_id = 19) const int NUM_ITEMS = 0;
+layout (constant_id = 20) const int TAIL_M = 0;
 
 #define VEC_SIZE 4
 #define BLOCK_H 4
 #define BLOCK_W 8
-#define TAIL_M (M % 4)
 
 vec4 activation(vec4 x)
 {
@@ -174,15 +174,15 @@ void main()
         }
         while( i < width0 );
         vec4 bias_val = bias[2 * int(gl_GlobalInvocationID.x)];
-        dot0 += bias_val; 
-        dot1 += bias_val; 
-        dot2 += bias_val; 
-        dot3 += bias_val; 
+        dot0 += bias_val;
+        dot1 += bias_val;
+        dot2 += bias_val;
+        dot3 += bias_val;
         bias_val = bias[2 * int(gl_GlobalInvocationID.x) + 1];
-        dot01 += bias_val; 
-        dot11 += bias_val; 
-        dot21 += bias_val; 
-        dot31 += bias_val; 
+        dot01 += bias_val;
+        dot11 += bias_val;
+        dot21 += bias_val;
+        dot31 += bias_val;
         out0[output_batch_offset + (out_y + 0) * width1 + 2 * gx] = activation(dot0);
         out0[output_batch_offset + (out_y + 1) * width1 + 2 * gx] = activation(dot1);
         out0[output_batch_offset + (out_y + 2) * width1 + 2 * gx] = activation(dot2);
@@ -192,8 +192,7 @@ void main()
         out0[output_batch_offset + (out_y + 2) * width1 + 2 * gx + 1] = activation(dot21);
         out0[output_batch_offset + (out_y + 3) * width1 + 2 * gx + 1] = activation(dot31);
     }
-#if TAIL_M > 0
-    else if (out_x < N && out_y < M)
+    else if (out_x < N && out_y < M && TAIL_M > 0)
     {
         int width0 = K / VEC_SIZE;
         int width1 = N / VEC_SIZE;
@@ -201,24 +200,24 @@ void main()
         int src1_read0_offset = out_x * width0;
         vec4 dot0 = vec4(0.f);
         vec4 dot01 = vec4(0.f);
-#if TAIL_M > 1
+
+        // if TAIL_M > 1
         vec4 dot1 = vec4(0.f);
         vec4 dot11 = vec4(0.f);
-#endif
-#if TAIL_M > 2
+
+        // if TAIL_M > 2
         vec4 dot2 = vec4(0.f);
         vec4 dot21 = vec4(0.f);
-#endif
         int i = 0;
+
         do
         {
             vec4 a0 = vec4(0.f);
-#if TAIL_M > 1
+            // if TAIL_M > 1
             vec4 a1 = vec4(0.f);
-#endif
-#if TAIL_M > 2
+            // TAIL_M > 2
             vec4 a2 = vec4(0.f);
-#endif
+
             vec4 brow0  = src1[src1_read0_offset]; src1_read0_offset += width0;
             vec4 brow1  = src1[src1_read0_offset]; src1_read0_offset += width0;
             vec4 brow2  = src1[src1_read0_offset]; src1_read0_offset += width0;
@@ -235,10 +234,12 @@ void main()
             int src0_x = org_x + (i / src0_depth) % FILTER_W;
             int src0_y = org_y + (i / src0_depth) / FILTER_W;
             int src0_z = i % src0_depth;
-            if(src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
+
+            if (src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
             {
                 a0 = src0[input_batch_offset + src0_y * (IN_W * src0_depth) + src0_x * src0_depth + src0_z];
             }
+
             dot0.x += dot(brow0, a0);
             dot0.y += dot(brow1, a0);
             dot0.z += dot(brow2, a0);
@@ -247,67 +248,75 @@ void main()
             dot01.y += dot(brow11, a0);
             dot01.z += dot(brow21, a0);
             dot01.w += dot(brow31, a0);
-#if TAIL_M > 1
-            dst_x = (out_y + 1) % OUT_W;
-            dst_y = (out_y + 1) / OUT_W;
-            org_y = dst_y * STRIDE_H - PAD_H;
-            org_x = dst_x * STRIDE_W - PAD_W;
-            src0_x = org_x + (i / src0_depth) % FILTER_W;
-            src0_y = org_y + (i / src0_depth) / FILTER_W;
-            if(src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
+
+            if (TAIL_M > 1)
             {
-                a1 = src0[input_batch_offset + src0_y * (IN_W * src0_depth) + src0_x * src0_depth + src0_z];
+                dst_x = (out_y + 1) % OUT_W;
+                dst_y = (out_y + 1) / OUT_W;
+                org_y = dst_y * STRIDE_H - PAD_H;
+                org_x = dst_x * STRIDE_W - PAD_W;
+                src0_x = org_x + (i / src0_depth) % FILTER_W;
+                src0_y = org_y + (i / src0_depth) / FILTER_W;
+                if(src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
+                {
+                    a1 = src0[input_batch_offset + src0_y * (IN_W * src0_depth) + src0_x * src0_depth + src0_z];
+                }
+                dot1.x += dot(brow0, a1);
+                dot1.y += dot(brow1, a1);
+                dot1.z += dot(brow2, a1);
+                dot1.w += dot(brow3, a1);
+                dot11.x += dot(brow01, a1);
+                dot11.y += dot(brow11, a1);
+                dot11.z += dot(brow21, a1);
+                dot11.w += dot(brow31, a1);
             }
-            dot1.x += dot(brow0, a1);
-            dot1.y += dot(brow1, a1);
-            dot1.z += dot(brow2, a1);
-            dot1.w += dot(brow3, a1);
-            dot11.x += dot(brow01, a1);
-            dot11.y += dot(brow11, a1);
-            dot11.z += dot(brow21, a1);
-            dot11.w += dot(brow31, a1);
-#endif
-#if TAIL_M > 2
-            dst_x = (out_y + 2) % OUT_W;
-            dst_y = (out_y + 2) / OUT_W;
-            org_y = dst_y * STRIDE_H - PAD_H;
-            org_x = dst_x * STRIDE_W - PAD_W;
-            src0_x = org_x + (i / src0_depth) % FILTER_W;
-            src0_y = org_y + (i / src0_depth) / FILTER_W;
-            if(src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
+
+            if (TAIL_M > 2)
             {
-                a2 = src0[input_batch_offset + src0_y * (IN_W * src0_depth) + src0_x * src0_depth + src0_z];
+                dst_x = (out_y + 2) % OUT_W;
+                dst_y = (out_y + 2) / OUT_W;
+                org_y = dst_y * STRIDE_H - PAD_H;
+                org_x = dst_x * STRIDE_W - PAD_W;
+                src0_x = org_x + (i / src0_depth) % FILTER_W;
+                src0_y = org_y + (i / src0_depth) / FILTER_W;
+                if(src0_y >= 0 && src0_y < IN_H && src0_x >= 0 && src0_x < IN_W)
+                {
+                    a2 = src0[input_batch_offset + src0_y * (IN_W * src0_depth) + src0_x * src0_depth + src0_z];
+                }
+                dot2.x += dot(brow0, a2);
+                dot2.y += dot(brow1, a2);
+                dot2.z += dot(brow2, a2);
+                dot2.w += dot(brow3, a2);
+                dot21.x += dot(brow01, a2);
+                dot21.y += dot(brow11, a2);
+                dot21.z += dot(brow21, a2);
+                dot21.w += dot(brow31, a2);
             }
-            dot2.x += dot(brow0, a2);
-            dot2.y += dot(brow1, a2);
-            dot2.z += dot(brow2, a2);
-            dot2.w += dot(brow3, a2);
-            dot21.x += dot(brow01, a2);
-            dot21.y += dot(brow11, a2);
-            dot21.z += dot(brow21, a2);
-            dot21.w += dot(brow31, a2);
-#endif
             i++;
         }
-        while( i < width0 );
+        while (i < width0);
+
         vec4 bias_val = bias[2 * int(gl_GlobalInvocationID.x)];
         vec4 bias_val2 = bias[2 * int(gl_GlobalInvocationID.x) + 1];
-        dot0 += bias_val; 
-        dot01 += bias_val2; 
+        dot0 += bias_val;
+        dot01 += bias_val2;
         out0[output_batch_offset + (out_y + 0) * width1 + 2 * gx] = activation(dot0);
         out0[output_batch_offset + (out_y + 0) * width1 + 2 * gx + 1] = activation(dot01);
-#if TAIL_M > 1
-        dot1 += bias_val; 
-        dot11 += bias_val2; 
-        out0[output_batch_offset + (out_y + 1) * width1 + gx] = activation(dot1);
-        out0[output_batch_offset + (out_y + 1) * width1 + 2 * gx + 1] = activation(dot11);
-#endif
-#if TAIL_M > 2
-        dot2 += bias_val; 
-        dot21 += bias_val2; 
-        out0[output_batch_offset + (out_y + 2) * width1 + gx] = activation(dot2);
-        out0[output_batch_offset + (out_y + 2) * width1 + 2 * gx + 1] = activation(dot21);
-#endif
+
+        if (TAIL_M > 1)
+        {
+            dot1 += bias_val;
+            dot11 += bias_val2;
+            out0[output_batch_offset + (out_y + 1) * width1 + gx] = activation(dot1);
+            out0[output_batch_offset + (out_y + 1) * width1 + 2 * gx + 1] = activation(dot11);
+        }
+
+        if (TAIL_M > 2)
+        {
+            dot2 += bias_val;
+            dot21 += bias_val2;
+            out0[output_batch_offset + (out_y + 2) * width1 + gx] = activation(dot2);
+            out0[output_batch_offset + (out_y + 2) * width1 + 2 * gx + 1] = activation(dot21);
+        }
     }
-#endif
 }

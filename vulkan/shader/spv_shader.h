@@ -30,9 +30,9 @@ extern const unsigned int max_pool_spv[1449];
 extern const unsigned int lrn_spv[1730];
 extern const unsigned int dw_conv_spv[2231];
 extern const unsigned int logistic_spv[368];
-extern const unsigned int conv_chn3to4_spv[771];
-extern const unsigned int conv_gemmShader4_8_spv[4681];
-extern const unsigned int conv_gemm1_spv[1300];
+extern const unsigned int conv_chn3to4_spv[729];
+extern const unsigned int conv_gemmShader4_8_spv[7691];
+extern const unsigned int conv_gemm1_spv[1284];
 
 NAME_SPACE_STOP
 

@@ -287,6 +287,14 @@ static const char* defaultConfig[] =
     "optype3_batch1_in224_224_4_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_248_1_block8_4_1",
     "optype3_batch1_in224_224_4_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
     "optype3_batch1_in224_224_4_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_56_1_block8_4_1",
+    /* temporarily for unit test purpose */
+    "optype3_batch1_in3_3_4_out3_3_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_4_1_block1_1_1",
+    "optype3_batch1_in8_8_4_out6_6_1_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz4_16_1_block8_4_1",
+    "optype3_batch1_in7_7_1024_out7_7_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1"
+    "optype3_batch1_in8_8_8_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
+    "optype3_batch1_in7_7_8_out5_5_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
+    "optype3_batch1_in8_8_4_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_256_1_block8_4_1"
+
 #endif
 };
 
@@ -1268,12 +1276,81 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
                 resource.tmpBo.push_back(imageBoChn4);
                 resource.tmpBo.push_back(filterBoChn4);
                 chn3ToChn4(convParam, progMgr, filter.getSSbo(), filterBoChn4, FILTER_SIZE(convParam));
+
+#if 0
+                glBindBuffer(GL_SHADER_STORAGE_BUFFER, filterBoChn4);
+                static uint32_t file_no = 0;
+                std::string file = std::string("/data/") + std::string("gles_") + std::string("filter")
+                                        + std::to_string(file_no) + ".txt";
+                FILE* file_ptr = fopen(file.c_str(), "w+");
+
+                file_no++;
+
+                if (file_ptr == nullptr)
+                {
+                    NN_GPU_DEBUG("create file %s failed", file.c_str());
+                }
+                else
+                {
+
+                    const size_t f_len = 4 * output_chn * filter_height * filter_width;
+                    const float* fp = (float*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, f_len, GL_MAP_READ_BIT);
+                    int cur_c = 1;
+
+                    NN_GPU_DEBUG("%s: dumpped file length is %d", __func__, f_len);
+
+                    for (size_t i = 0; i < f_len; i++)
+                    {
+                        fprintf(file_ptr, "%f,", fp[i]);
+                        if (cur_c % 4 == 0) {
+                            fprintf(file_ptr, "\n");
+                        }
+                        ++cur_c;
+                    }
+                    fclose(file_ptr);
+
+                    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+                }
+#endif
             }
 
             imageBoChn4 = resource.tmpBo[0];
             filterBoChn4 = resource.tmpBo[1];
             chn3ToChn4(convParam, progMgr, input.getSSbo(), imageBoChn4, INPUT_SIZE(convParam));
             glFinish();
+
+#if 0
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, imageBoChn4);
+            static uint32_t file_no = 0;
+            std::string file = std::string("/data/") + std::string("gles_") + std::string("input")
+                                        + std::to_string(file_no) + ".txt";
+            FILE* file_ptr = fopen(file.c_str(), "w+");
+            file_no++;
+
+            if (file_ptr == nullptr)
+            {
+                NN_GPU_DEBUG("create file %s failed", file.c_str());
+            }
+            else
+            {
+                const size_t f_len = input_height * input_width * 4;
+                const float* fp = (float*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, f_len, GL_MAP_READ_BIT);
+
+                int cur_c = 1;
+                NN_GPU_DEBUG("%s: dumpped file length is %d", __func__, f_len);
+
+                for (size_t i = 0; i < f_len; i++)
+                {
+                    fprintf(file_ptr, "%f,", fp[i]);
+                    if (cur_c % 4 == 0) {
+                        fprintf(file_ptr, "\n");
+                    }
+                    ++cur_c;
+                }
+                fclose(file_ptr);
+                glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+            }
+#endif
 
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, imageBoChn4);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, filterBoChn4);
@@ -1296,18 +1373,18 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
 
         prepareShaderConfig(convParam, shaderConf, progMgr, inSSbo, filterSSbo, biasSSbo, outSSbo);
 
-        NN_GPU_DEBUG("convParam batch %d, input_height %d, input_width %d, input_chn %d, output_height %d, output_width %d, output_chn %d, "
-                "filter_height %d, filter_width %d, stride_height %d, stride_width %d, padding_height %d, padding_width %d,"
-                "activation %d, has_bias %d",
-                convParam.batch, convParam.inH, convParam.inW, convParam.inC, convParam.outH, convParam.outW, convParam.outC,
-                convParam.filterH, convParam.filterW, convParam.strideH, convParam.strideW, convParam.padH, convParam.padW,
-                convParam.activation, convParam.hasBias);
+        NN_GPU_DEBUG("convParam batch %d, input_height %d, input_width %d, input_chn %d, output_height %d, output_width %d, "
+                "output_chn %d, filter_height %d, filter_width %d, stride_height %d, stride_width %d, padding_height %d, "
+                "padding_width %d, activation %d, has_bias %d",
+                convParam.batch, convParam.inH, convParam.inW, convParam.inC, convParam.outH, convParam.outW,
+                convParam.outC, convParam.filterH, convParam.filterW, convParam.strideH, convParam.strideW,
+                convParam.padH, convParam.padW, convParam.activation, convParam.hasBias);
 
         convolve(convParam, shaderConf, progMgr);
         if (needSync)
             glFinish();
 
-        //output.dump();
+        // output.dumpToFile("out", convParam.outC);
     }
     else
     {

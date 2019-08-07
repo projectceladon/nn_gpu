@@ -65,9 +65,9 @@ void main()
     {
         int image_offset  = gz * IN_H * IN_W * CHANNELS / VEC_SIZE;
         int output_offset = gz * M * N;
-        for (int i = 0; i < K / VEC_SIZE; i++)
+        for (int i = 0; i < VEC_SIZE; i++)
         {
-            sum += dot(src0[image_offset + gy * K / VEC_SIZE + i], src1[gx * K / VEC_SIZE + i]);
+            sum += dot(src0[image_offset + gy * VEC_SIZE + i], src1[gx * VEC_SIZE + i]);
         }
         sum += bias[gx];
         out0[output_offset + gy * N + gx] = activation(sum);

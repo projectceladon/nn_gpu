@@ -301,9 +301,9 @@ void VkOpBase::setGroupSize(const int gx, const int gy, const int gz)
     group_z = gz;
 }
 
-void VkOpBase::rebindVkBuffer(VkOperand& operand, const int w, const int h, const int c)
+void VkOpBase::rebindVkBuffer(VkOperand& operand, const int b, const int w, const int h, const int c)
 {
-    operand.reset(w, h, c);
+    operand.reset(b, w, h, c);
     return;
 }
 

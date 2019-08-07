@@ -29,6 +29,7 @@ public:
     Buffer(size_t size_in_bytes, const uint8_t* data);
     ~Buffer();
     void dump();
+    void dumpToFile(const char* fileName = "img_data", const int channels = 0);
     VkBuffer getVkBuffer() { return buffer; }
     uint8_t* map();
     void unMap();
