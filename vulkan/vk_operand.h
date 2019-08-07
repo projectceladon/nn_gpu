@@ -41,7 +41,7 @@ public:
     ~VkOperand() {}
 
     bool set(const Operand& from, uint8_t* vp, uint32_t index);
-    void reset(const int width, const int height, const int channel);
+    void reset(const int batch, const int width, const int height, const int channel);
     void restore(const Operand& from);
     bool setArg(const RequestArgument& from);
     void shareGpuStorage(VkOperand& shareFrom);
@@ -78,7 +78,9 @@ public:
     }
 
     VkBuffer getVkBuffer();
+
     void dump();
+    void dumpToFile(const char* file_name = "img_data", const int channels = 0);
 
     Shape getShape() const { return dimensions; }
 

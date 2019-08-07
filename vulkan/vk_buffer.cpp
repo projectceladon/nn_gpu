@@ -15,7 +15,6 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
 #include "vk_common.h"
 #include "vk_buffer.h"
 #include "vk_wrapper.h"
@@ -87,13 +86,56 @@ void Buffer::dump()
             __func__, 
             *(reinterpret_cast<const float *>(data)),
             length);
-        // only dump the first 16 bytes
+        const float* fp = reinterpret_cast<const float *>(data);
+        // only dump the first 16 float numberbs
         for (size_t i = 0; i < 15; ++i)
         {
-            NN_GPU_DEBUG("dumpped out buffer content is: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+            NN_GPU_DEBUG("dumpped out buffer content is: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
+                fp[0], fp[1], fp[2], fp[3], fp[4], fp[5], fp[6], fp[7], fp[8], fp[9], fp[10], fp[11], fp[12],
+                fp[13], fp[14], fp[15]);
         }
+        vkUnmapMemory(device, memory);
+    }
+}
+
+void Buffer::dumpToFile(const char* fileName, const int channels)
+{
+    static uint32_t file_no = 0;
+
+    std::string file = std::string("/data/") + std::string("vk_") + std::string(fileName)
+                    + std::to_string(file_no) + ".txt";
+    FILE* file_ptr = fopen(file.c_str(), "w+");
+
+    file_no++;
+
+    if (file_ptr == nullptr)
+    {
+        NN_GPU_DEBUG("call %s, create file %s failed", __func__, file.c_str());
+        return;
+    }
+
+    if (memory != VK_NULL_HANDLE)
+    {
+        uint8_t* data;
+
+        VK_CHECK_RESULT(vkMapMemory(device, memory, 0, length, 0, (void **)&data));
+
+        const float* fp = reinterpret_cast<const float *>(data);
+        int cur_c = 1;
+        const size_t f_len = length / 4;
+
+        NN_GPU_DEBUG("%s: dumpped file length is %zu", __func__, f_len);
+
+        for (size_t i = 0; i < f_len; i++)
+        {
+            fprintf(file_ptr, "%f,", fp[i]);
+            if (channels != 0 && cur_c % channels == 0) {
+                fprintf(file_ptr, "\n");
+            }
+            cur_c++;
+        }
+
+        fclose(file_ptr);
         vkUnmapMemory(device, memory);
     }
 }

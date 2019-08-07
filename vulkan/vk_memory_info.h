@@ -42,6 +42,7 @@ public:
     void shareFrom(VkMemoryInfo* from) { buffer = from->buffer; from->incRef();}
     VkBuffer getVkBuffer();
     void dump();
+    void dumpToFile(const char* file_name, const int channels = 0);
 private:
     uint8_t* userptr;
     size_t length;

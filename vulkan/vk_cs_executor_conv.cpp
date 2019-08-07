@@ -30,7 +30,7 @@ NAME_SPACE_BEGIN
 #define MAX_GROUP_COUNT_Y 65535
 #define MAX_GROUP_COUNT_Z 65535
 
-#define SPEC_CONST_NUM 20
+#define SPEC_CONST_NUM 21
 #define ITEMS_PER_WI 16
 
 enum ConvShaderType
@@ -54,6 +54,7 @@ static ShaderConfigMap shaderConfigMap;
 static bool is_initialized = false;
 static int tmpBoSize = 0;
 static int shader_type = CONV_SHADER_TYPE_BASIC;
+static bool converted_to_chn4 = false;
 
 
 struct PushConst {
@@ -65,9 +66,9 @@ struct SpecializaitonConst {
 public:
     SpecializaitonConst() {};
     SpecializaitonConst(int ih, int iw, int oh, int ow, int fh,
-                        int fw, int chn, int bat, int M, int K, int N):
+                        int fw, int chn, int bat, int M, int K, int N, int tm):
         in_h(ih), in_w(iw), out_h(oh), out_w(ow), filter_h(fh), filter_w(fw),
-        channels(chn), batch(bat), m(M), k(K), n(N)
+        channels(chn), batch(bat), m(M), k(K), n(N), tail_m(tm)
     {};
 
     int local_sz_x;
@@ -90,6 +91,7 @@ public:
     int n;
     int activation;
     int num_items;    // for chn3tochn4
+    int tail_m;       // for gemm_4_4 & gemm_4_8
 };
 
 static const char* defaultConfig[] =
@@ -309,6 +311,12 @@ static const char* defaultConfig[] =
     "optype3_batch1_in224_224_4_out112_112_16_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_248_1_block8_4_1",
     "optype3_batch1_in224_224_4_out112_112_64_filter7_7_pad2_2_stride2_2_activation1_bias1", "type5_lsz1_24_1_block8_4_1",
     "optype3_batch1_in224_224_4_out112_112_32_filter3_3_pad0_0_stride2_2_activation3_bias1", "type5_lsz1_56_1_block8_4_1",
+    /* temporarily for unit test purpose */
+    "optype3_batch1_in3_3_4_out3_3_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_4_1_block1_1_1",
+    "optype3_batch1_in7_7_1024_out7_7_1024_filter1_1_pad0_0_stride1_1_activation3_bias1", "type5_lsz1_24_1_block8_4_1",
+    "optype3_batch1_in8_8_8_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
+    "optype3_batch1_in7_7_8_out5_5_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
+    "optype3_batch1_in8_8_4_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_256_1_block8_4_1"
 #endif
 };
 
@@ -509,6 +517,7 @@ static void setSpecInfo(VkSpecializationMapEntry* entry,
     SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(SpecializaitonConst, n), sizeof(int));
     SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(SpecializaitonConst, activation), sizeof(int));
     SET_SPEC_CONST_ENTRY(entry[19], 19, offsetof(SpecializaitonConst, num_items), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[20], 20, offsetof(SpecializaitonConst, tail_m), sizeof(int));
 
     spec_info.mapEntryCount = entry_size;
     spec_info.pMapEntries   = entry;
@@ -539,16 +548,17 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     Shape filter_shape = filter.getShape();
     Shape bias_shape   = bias.getShape();
 
-    int M = out_shape[kShapeIdxHeight] * out_shape[kShapeIdxWidth];
-    int N = out_shape[kShapeIdxChannel];
-    int K = in_shape[kShapeIdxChannel] * filter_shape[kShapeIdxHeight] * filter_shape[kShapeIdxWidth];
+    int M      = out_shape[kShapeIdxHeight] * out_shape[kShapeIdxWidth];
+    int N      = out_shape[kShapeIdxChannel];
+    int K      = in_shape[kShapeIdxChannel] * filter_shape[kShapeIdxHeight] * filter_shape[kShapeIdxWidth];
+    int tail_m = M % 4;
 
     PaddingScheme padding_mode;
 
     SpecializaitonConst spec_const(in_shape[kShapeIdxHeight], in_shape[kShapeIdxWidth],
                                    out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth],
                                    filter_shape[kShapeIdxHeight], filter_shape[kShapeIdxWidth],
-                                   in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], M, K, N);
+                                   in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], M, K, N, tail_m);
 
     PushConst push_const;
 
@@ -596,13 +606,13 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         if (spec_const.channels == 3)
         {
             uint32_t filter_size    = spec_const.channels * spec_const.filter_w * spec_const.filter_h * spec_const.n;
-            uint32_t input_size     = spec_const.channels * spec_const.in_w * spec_const.in_h * spec_const.n;
+            uint32_t input_size     = spec_const.channels * spec_const.in_w * spec_const.in_h * spec_const.batch;
             uint32_t total_thread_x = 0;
 
-            const int new_channel_size = 4;
+            const int new_channel_num = 4;
 
-            opBase->rebindVkBuffer(chn4_filter, spec_const.filter_w, spec_const.filter_h, new_channel_size);
-            opBase->rebindVkBuffer(chn4_in, spec_const.in_w, spec_const.in_h, new_channel_size);
+            opBase->rebindVkBuffer(chn4_filter, spec_const.n, spec_const.filter_w, spec_const.filter_h, new_channel_num);
+            opBase->rebindVkBuffer(chn4_in, spec_const.batch, spec_const.in_w, spec_const.in_h, new_channel_num);
 
             // first off, convert filter to 4 channels
             if (tmpBoSize == 0)
@@ -617,6 +627,8 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
                 VkSpecializationMapEntry entry[SPEC_CONST_NUM];
                 VkSpecializationInfo spec_info;
+                spec_const.num_items = filter_size;
+
                 setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
 
                 opBase->createShaderModule(conv_chn3to4_spv, sizeof(conv_chn3to4_spv));
@@ -627,14 +639,14 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
                 int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
-                for (uint32_t b = 0; b < filter_shape[kShapeIdxBatch]; b++)
+
+                uint32_t num = partition_num * 3;
+                for (uint32_t i = 0; i < num; i++)
                 {
-                    for (int n = 0; n < partition_num; n++)
-                    {
-                        opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
-                        opBase->runCommandBuffer();
-                    }
+                    opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                    opBase->runCommandBuffer();
                 }
+                // chn4_filter.dumpToFile("filter", 4);
             }
 
             // then, convert input
@@ -647,6 +659,8 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
             VkSpecializationMapEntry entry[SPEC_CONST_NUM];
             VkSpecializationInfo spec_info;
+
+            spec_const.num_items = input_size;
             setSpecInfo(entry, spec_info, spec_const, SPEC_CONST_NUM);
 
             opBase->createShaderModule(conv_chn3to4_spv, sizeof(conv_chn3to4_spv));
@@ -668,7 +682,9 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
             spec_const.k = spec_const.k / 3 * 4;
             spec_const.channels = 4;
+            converted_to_chn4 = true;
 
+            // chn4_in.dumpToFile("in", 4);
         }
 
         // prepare shader config
@@ -709,11 +725,12 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
             break;
         }
 
-        if (spec_const.channels == 4)
+        if (spec_const.channels == 4 && converted_to_chn4)
         {
             // bind the converted channel 4 operands
             opBase->bindOperand(chn4_in, 0, opBase->descriptor_set);
             opBase->bindOperand(chn4_filter, 1, opBase->descriptor_set);
+            converted_to_chn4 = false;
         }
         else
         {
@@ -739,11 +756,11 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: lsx %d, lsy %d, lsz %d, group_x %d, group_y %d, group_z %d, "
                  "in_w %d, in_h %d, out_h %d, out_w %d, stride_h %d, stride_w %d, pad_h %d, pad_w %d, "
                  "filter_h %d, filter_w %d, channels %d, batch %d, m %d, k %d, n %d, activation %d",
-                 spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x, opBase->group_y,
-                 opBase->group_z, spec_const.in_w, spec_const.in_h, spec_const.out_h, spec_const.out_w,
-                 spec_const.stride_h, spec_const.stride_w, spec_const.pad_h, spec_const.pad_w, spec_const.filter_h,
-                 spec_const.filter_w, spec_const.channels, spec_const.batch, spec_const.m, spec_const.k, spec_const.n,
-                 spec_const.activation);
+                 spec_const.local_sz_x, spec_const.local_sz_y, spec_const.local_sz_z, opBase->group_x,
+                 opBase->group_y, opBase->group_z, spec_const.in_w, spec_const.in_h, spec_const.out_h,
+                 spec_const.out_w, spec_const.stride_h, spec_const.stride_w, spec_const.pad_h,
+                 spec_const.pad_w, spec_const.filter_h, spec_const.filter_w, spec_const.channels,
+                 spec_const.batch, spec_const.m, spec_const.k, spec_const.n, spec_const.activation);
 
     int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
@@ -756,7 +773,7 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         }
     }
 
-    out.dump();
+    // out.dumpToFile("out", spec_const.n);
     return true;
 }
 

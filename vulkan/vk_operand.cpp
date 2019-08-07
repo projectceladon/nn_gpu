@@ -23,8 +23,9 @@
 
 NAME_SPACE_BEGIN
 
-void VkOperand::reset(const int width, const int height, const int channel)
+void VkOperand::reset(const int batch, const int width, const int height, const int channel)
 {
+    dimensions[kShapeIdxBatch]   = batch;
     dimensions[kShapeIdxHeight]  = height;
     dimensions[kShapeIdxWidth]   = width;
     dimensions[kShapeIdxChannel] = channel;
@@ -237,6 +238,11 @@ VkBuffer VkOperand::getVkBuffer()
 void VkOperand::dump()
 {
     memInfo->dump();
+}
+
+void VkOperand::dumpToFile(const char* file_name, const int channels)
+{
+    memInfo->dumpToFile(file_name, channels);
 }
 
 void VkOperand::shareGpuStorage(VkOperand& from)
