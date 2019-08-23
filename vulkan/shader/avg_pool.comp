@@ -1,5 +1,7 @@
 #version 450
-#define LOCAL_SZ_X 256
+#define ZPAR 1
+#define BATCH 1
+
 layout(push_constant) uniform pushBlock {
       int channels;
       int in_h;
@@ -24,46 +26,62 @@ layout(binding = 1) writeonly buffer Output{
     float out_buffer[];
 };
 
-layout(local_size_x = LOCAL_SZ_X, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 void main()
 {
-  int global_size = int(gl_WorkGroupSize.x * gl_NumWorkGroups.x);
-  int gid = int(gl_GlobalInvocationID.x);
-  for (int index = gid; index < p.total; index += global_size)
-  {
-      const int pw = index % p.out_w;
-      const int ph = (index / p.out_w) % p.out_h;
-      const int c = (index / p.out_w / p.out_h) % p.channels;
-      const int n = index / p.out_w / p.out_h / p.channels;
-      int hstart = ph * p.stride_h - p.padding_h;
-      int wstart = pw * p.stride_w - p.padding_w;
-      int hend = min(hstart + p.filter_h, p.in_h + p.padding_h);
-      int wend = min(wstart + p.filter_w, p.in_w + p.padding_w);
-      int pool_size;
-      if (p.padded_area == 1)
-      {
-          pool_size = (hend - hstart) * (wend - wstart);
-          hstart = max(hstart, 0);
-          wstart = max(wstart, 0);
-          hend = min(hend, p.in_h);
-          wend = min(wend, p.in_w);
-      }
-      else
-      {
-          hstart = max(hstart, 0);
-          wstart = max(wstart, 0);
-          hend = min(hend, p.in_h);
-          wend = min(wend, p.in_w);
-          pool_size = (hend - hstart) * (wend - wstart);
-      }
-      float aveval = 0;
-      int off = (n * p.channels + c) * p.in_h * p.in_w;
-      for (int h = hstart; h < hend; ++h) {
-        for (int w = wstart; w < wend; ++w) {
-          aveval += in_buffer[off + h * p.in_w + w];
+    uint outputX = gl_GlobalInvocationID.x;
+    uint outputY = gl_GlobalInvocationID.y;
+    uint outputZ = gl_GlobalInvocationID.z * ZPAR;
+    if(outputX < p.out_w && outputY < p.out_h)
+    {
+        float sum[BATCH * ZPAR];
+        for(uint outz = uint(0); outz < BATCH * ZPAR; outz++)
+        {
+            sum[outz] = 0.0f;
         }
-      }
-      out_buffer[index] = aveval / pool_size;
-  }
+        int org_y = int(outputY * p.stride_h - p.padding_h);
+        int org_x = int(outputX * p.stride_w - p.padding_w);
+        uint input_image_size  = p.in_w * p.in_h * p.channels;
+        uint output_image_size = p.out_w * p.out_h * p.channels;
+        uint local_image_offset = (uint(org_y) * p.in_w + uint(org_x)) * p.channels + outputZ;
+
+        uint batch_offset = 0;
+        uint cnt = 0;
+        uint num = 0;
+        for (uint b = 0; b < BATCH; b++)
+        {
+            for(uint y = 0; y < p.filter_h; y++)
+            {
+                for(uint x = 0; x < p.filter_w; x++)
+                {
+                    if(org_y + int(y) >= 0 && org_y + int(y) < int(p.in_h) && org_x + int(x) >= 0 && org_x + int(x) < int(p.in_w))
+                    {
+                        for(uint outz =0; outz < ZPAR; outz++)
+                        {
+                            sum[b * ZPAR + outz] += in_buffer[local_image_offset + outz];
+                        }
+                        cnt++;
+                    }
+                    local_image_offset += p.channels;
+                }
+                local_image_offset += p.in_w * p.channels - p.channels * p.filter_w;
+            }
+            local_image_offset += input_image_size - p.channels * p.filter_w - p.in_w * p.filter_h * p.channels;
+            if (b == 0)
+                num = cnt;
+        }
+        for (uint b = 0; b < BATCH; b++)
+        {
+            for(uint outz = 0; outz < ZPAR; outz++)
+            {
+                if (outputZ + outz < p.channels)
+                {
+                    uint offset = batch_offset + (outputY * p.out_w  + outputX) * p.channels + outputZ + outz;
+                    out_buffer[offset] = sum[b * ZPAR + outz] / float(num);
+                }
+            }
+            batch_offset += output_image_size;
+        }
+    }
 }

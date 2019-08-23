@@ -19,6 +19,7 @@ layout (constant_id = 16) const int K = 0;
 layout (constant_id = 17) const int N = 0;
 layout (constant_id = 18) const int ACTIVATION = 0;
 layout (constant_id = 19) const int NUM_ITEMS = 0;
+layout (constant_id = 20) const int TAIL_M = 0;
 
 float activation(float x)
 {
@@ -37,10 +38,10 @@ float activation(float x)
 }
 
 layout(binding = 0) readonly buffer Input0 {
-    float src0[];
+    vec4 src0[];
 };
 layout(binding = 1) readonly buffer Input1 {
-    float src1[];
+    vec4 src1[];
 };
 layout(binding = 2) readonly buffer Input2 {
     float bias[];
@@ -65,9 +66,9 @@ void main()
     {
         int image_offset  = gz * IN_H * IN_W * CHANNELS / VEC_SIZE;
         int output_offset = gz * M * N;
-        for (int i = 0; i < VEC_SIZE; i++)
+        for (int i = 0; i < K / VEC_SIZE; i++)
         {
-            sum += dot(src0[image_offset + gy * VEC_SIZE + i], src1[gx * VEC_SIZE + i]);
+            sum += dot(src0[image_offset + gy * K / VEC_SIZE + i], src1[gx * K / VEC_SIZE + i]);
         }
         sum += bias[gx];
         out0[output_offset + gy * N + gx] = activation(sum);
