@@ -42,6 +42,7 @@ public:
 
     bool set(const Operand& from, uint8_t* vp, uint32_t index);
     void reset(const int batch, const int width, const int height, const int channel);
+    void resetForTune();
     void restore(const Operand& from);
     bool setArg(const RequestArgument& from);
     void shareGpuStorage(VkOperand& shareFrom);
@@ -81,6 +82,7 @@ public:
 
     void dump();
     void dumpToFile(const char* file_name = "img_data", const int channels = 0);
+    void copyToBuffer(float* to_buf, const size_t buf_size);
 
     Shape getShape() const { return dimensions; }
 

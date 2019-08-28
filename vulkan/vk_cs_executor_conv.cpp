@@ -30,8 +30,27 @@ NAME_SPACE_BEGIN
 #define MAX_GROUP_COUNT_Y 65535
 #define MAX_GROUP_COUNT_Z 65535
 
+#define MAX_GROUP_SIZE_X     896
+#define MAX_GROUP_SIZE_Y     896
+#define MAX_GROUP_SIZE_Z     896
+#define MAX_GROUP_INVOCATION 896
+
 #define SPEC_CONST_NUM 21
 #define ITEMS_PER_WI 16
+
+#include <sys/time.h>
+
+#define TIMER_START(start)        \
+    struct timeval start;         \
+    gettimeofday(&start, 0);
+
+#define TIMER_STOP(start)                                                               \
+    ({                                                                                  \
+     struct timeval stop;                                                               \
+     gettimeofday(&stop, 0);                                                            \
+     long elapsed_us = (stop.tv_sec-start.tv_sec)*1000000 + stop.tv_usec-start.tv_usec; \
+     elapsed_us;                                                                        \
+     })
 
 enum ConvShaderType
 {
@@ -45,9 +64,17 @@ enum ConvShaderType
     CONV_SHADER_TYPE_NUM                 = 7
 };
 
+enum FusedActivationFunctionType { kNone, kRelu, kRelu1, kRelu6 };
+
+struct PushConst {
+public:
+    PushConst() {};
+};
+
 
 using ShaderConfigPair = std::pair<std::string, std::string>;
 using ShaderConfigMap  = std::map<std::string, std::string>;
+using TuningTimeMap    = std::map<long, int>;
 
 static std::mutex mtx;
 static ShaderConfigMap shaderConfigMap;
@@ -55,44 +82,6 @@ static bool is_initialized = false;
 static int tmpBoSize = 0;
 static int shader_type = CONV_SHADER_TYPE_BASIC;
 static bool converted_to_chn4 = false;
-
-
-struct PushConst {
-public:
-    PushConst() {};
-};
-
-struct SpecializaitonConst {
-public:
-    SpecializaitonConst() {};
-    SpecializaitonConst(int ih, int iw, int oh, int ow, int fh,
-                        int fw, int chn, int bat, int M, int K, int N, int tm):
-        in_h(ih), in_w(iw), out_h(oh), out_w(ow), filter_h(fh), filter_w(fw),
-        channels(chn), batch(bat), m(M), k(K), n(N), tail_m(tm)
-    {};
-
-    int local_sz_x;
-    int local_sz_y;
-    int local_sz_z;
-    int in_h;
-    int in_w;
-    int out_h;
-    int out_w;
-    int stride_h;
-    int stride_w;
-    int pad_h;
-    int pad_w;
-    int filter_h;
-    int filter_w;
-    int channels;
-    int batch;
-    int m;
-    int k;
-    int n;
-    int activation;
-    int num_items;    // for chn3tochn4
-    int tail_m;       // for gemm_4_4 & gemm_4_8
-};
 
 static const char* defaultConfig[] =
 {
@@ -320,8 +309,43 @@ static const char* defaultConfig[] =
 #endif
 };
 
+static inline bool needImg2Col(const VkConvSpecializedConst& param)
+{
+    return !(param.pad_h == 0 && param.pad_w == 0 && param.stride_h == 1 && param.stride_w == 1 &&
+             param.filter_h == 1 && param.filter_w == 1);
+}
+
+static std::string genConvSignature(const VkConvSpecializedConst& param)
+{
+    std::stringstream sig;
+    // Android NN desn't set has_bias, so assume has_bias = 1
+    int has_bias = 1;
+
+    sig << "optype"     << (int)OperationType::CONV_2D << "_"
+        << "batch"      << param.batch                 << "_"
+        << "in"         << param.in_h                  << "_" << param.in_w     << "_" << param.channels << "_"
+        << "out"        << param.out_h                 << "_" << param.out_w    << "_" << param.n        << "_"
+        << "filter"     << param.filter_h              << "_" << param.filter_w << "_"
+        << "pad"        << param.pad_h                 << "_" << param.pad_w    << "_"
+        << "stride"     << param.stride_h              << "_" << param.stride_w << "_"
+        << "activation" << param.activation            << "_"
+        << "bias"       << has_bias;
+
+    return sig.str();
+}
+
+static void configToString(const ShaderConfig& conf, std::string& str)
+{
+    std::stringstream ss;
+
+    ss << "local_size_xyz_(" << conf.local_size_x << ", " << conf.local_size_y << ", " << conf.local_size_z << ")"
+       << "_block_size_whd_(" << conf.block_width << ", " << conf.block_height << ", " << conf.block_depth << ")";
+
+    str = ss.str();
+}
+
 static bool computeGroupCount(int& gx, int& gy, int& gz, const int type,
-                              const SpecializaitonConst& param, const ShaderConfig& conf)
+                              const VkConvSpecializedConst& param, const ShaderConfig& conf)
 {
     switch (type)
     {
@@ -372,11 +396,602 @@ static bool computeGroupCount(int& gx, int& gy, int& gz, const int type,
         break;
     }
 
-    // todo: validates group size
+    if (conf.local_size_x * conf.local_size_y * conf.local_size_z < MAX_GROUP_INVOCATION &&
+        conf.local_size_x < MAX_GROUP_SIZE_X &&
+        conf.local_size_y < MAX_GROUP_SIZE_Y &&
+        conf.local_size_z < MAX_GROUP_SIZE_Z &&
+        gx < MAX_GROUP_COUNT_X && gy < MAX_GROUP_COUNT_Y && gz < MAX_GROUP_COUNT_Z)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+static std::vector<ShaderConfig> genShaderConfigCandidates(VkConvSpecializedConst& param, ConvShaderType type)
+{
+    int group_x, group_y, group_z;
+    std::vector<ShaderConfig> candidates;
+
+    // int M = param.out_h * param.out_w;
+    // int N = param.n;
+    int K = param.filter_h * param.filter_w;
+
+    ShaderConfig conf;
+
+    if (type == CONV_SHADER_TYPE_GEMM_4_8_GENERIC)
+    {
+        if (param.channels % 4 != 0 || param.n % 8 != 0)
+        {
+            return candidates;
+        }
+
+        param.local_sz_x  = 1;
+        param.local_sz_z  = 1;
+        conf.local_size_x = 1;
+        conf.local_size_z = 1;
+        conf.block_width  = 8;
+        conf.block_height = 4;
+        conf.block_depth  = 1;
+        shader_type       = CONV_SHADER_TYPE_GEMM_4_8_GENERIC;
+
+        for (int ly = 1; ly < 8; ++ly)
+        {
+            conf.local_size_y = ly;
+            param.local_sz_y  = ly;
+
+            if (computeGroupCount(group_x, group_y, group_z, CONV_SHADER_TYPE_GEMM_4_8_GENERIC, param, conf))
+            {
+                candidates.push_back(conf);
+            }
+        }
+
+        for (int ly = 8; ly <= 256; ly += 8)
+        {
+            conf.local_size_y = ly;
+            param.local_sz_y  = ly;
+
+            if (computeGroupCount(group_x, group_y, group_z, CONV_SHADER_TYPE_GEMM_4_8_GENERIC, param, conf))
+            {
+                candidates.push_back(conf);
+            }
+        }
+    }
+    else if (type == CONV_SHADER_TYPE_GEMM1)
+    {
+        if (needImg2Col(param) || K % 4 != 0)
+        {
+            return candidates;
+        }
+
+        param.local_sz_z  = 1;
+        conf.block_width  = 1;
+        conf.block_height = 1;
+        conf.block_depth  = 1;
+        shader_type       = CONV_SHADER_TYPE_GEMM1;
+
+        for (int lx = 1; lx <= 256; lx *= 4)
+        {
+            for (int ly = 1; ly <= 256; ly *= 4)
+            {
+                conf.local_size_x = lx;
+                conf.local_size_y = ly;
+
+                param.local_sz_x = lx;
+                param.local_sz_y = ly;
+
+                if (computeGroupCount(group_x, group_y, group_z, CONV_SHADER_TYPE_GEMM1, param, conf))
+                {
+                    candidates.push_back(conf);
+                }
+            }
+        }
+    }
+    else if (type == CONV_SHADER_TYPE_BASIC)
+    {
+        shader_type = CONV_SHADER_TYPE_BASIC;
+
+        conf.block_width  = 1;
+        conf.block_height = 1;
+        conf.block_depth  = 1;
+
+        for (int lx = 1; lx <= 256; lx *= 4)
+        {
+            for (int ly = 1; ly <= 256; ly *= 4)
+            {
+                for (int lz = 1; lz <= 32; lz *= 4)
+                {
+                    conf.local_size_x = lx;
+                    conf.local_size_y = ly;
+                    conf.local_size_z = lz;
+
+                    param.local_sz_x  = lx;
+                    param.local_sz_y  = ly;
+                    param.local_sz_z  = lz;
+
+                    if (computeGroupCount(group_x, group_y, group_z, CONV_SHADER_TYPE_BASIC, param, conf))
+                    {
+                        candidates.push_back(conf);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        NOT_REACH_HERE;
+    }
+
+    return candidates;
+}
+
+static void setSpecInfo(VkSpecializationMapEntry* entry,
+                        VkSpecializationInfo& spec_info,
+                        const VkConvSpecializedConst& spec_const,
+                        const int entry_size)
+{
+    SET_SPEC_CONST_ENTRY(entry[0], 0, offsetof(VkConvSpecializedConst, local_sz_x), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[1], 1, offsetof(VkConvSpecializedConst, local_sz_y), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[2], 2, offsetof(VkConvSpecializedConst, local_sz_z), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[3], 3, offsetof(VkConvSpecializedConst, in_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[4], 4, offsetof(VkConvSpecializedConst, in_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[5], 5, offsetof(VkConvSpecializedConst, out_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[6], 6, offsetof(VkConvSpecializedConst, out_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[7], 7, offsetof(VkConvSpecializedConst, stride_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[8], 8, offsetof(VkConvSpecializedConst, stride_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[9], 9, offsetof(VkConvSpecializedConst, pad_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[10], 10, offsetof(VkConvSpecializedConst, pad_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[11], 11, offsetof(VkConvSpecializedConst, filter_h), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[12], 12, offsetof(VkConvSpecializedConst, filter_w), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[13], 13, offsetof(VkConvSpecializedConst, channels), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[14], 14, offsetof(VkConvSpecializedConst, batch), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[15], 15, offsetof(VkConvSpecializedConst, m), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[16], 16, offsetof(VkConvSpecializedConst, k), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(VkConvSpecializedConst, n), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(VkConvSpecializedConst, activation), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[19], 19, offsetof(VkConvSpecializedConst, num_items), sizeof(int));
+    SET_SPEC_CONST_ENTRY(entry[20], 20, offsetof(VkConvSpecializedConst, tail_m), sizeof(int));
+
+    spec_info.mapEntryCount = entry_size;
+    spec_info.pMapEntries   = entry;
+    spec_info.dataSize      = sizeof(spec_const);
+    spec_info.pData         = &spec_const;
+
+    return;
+}
+
+static void convOneBhwc(float* in_data, int in_offset, float* filter_data, int filter_offset,
+                        float* bias, int bias_offset, float* convolved_data, int out_offset,
+                        int in_w, int in_h, int out_w, int out_h,
+                        int pad_left, int pad_top, int has_bias, int stride_w, int stride_h,
+                        int filter_w, int filter_h, int dilation_x, int dilation_y,
+                        int in_c, int out_c, int out_z, int out_x, int out_y, int depth, int activation)
+{
+    const int ZPAR = 1;
+
+    if (out_x < out_w && out_y < out_h)
+    {
+        float sum[ZPAR];
+
+        for(int kern = 0; kern < ZPAR; kern++)
+        {
+            sum[kern] = 0.0f;
+        }
+
+        const int org_y                 = out_y * stride_h - pad_top;
+        const int org_x                 = out_x * stride_w - pad_left;
+        const int current_filter_offset = filter_offset + depth * filter_h * filter_w * in_c;
+        const int bias_index            = bias_offset + (depth % out_c);
+        const int local_in_offset       = (org_y * in_w + org_x) * in_c;
+
+        float* in_ptr     = in_data + (in_offset + local_in_offset);
+        float* filter_ptr = filter_data + (current_filter_offset);
+
+        for(int y = 0; y < filter_h; y++)
+        {
+            for(int x = 0; x < filter_w; x++)
+            {
+                if(org_y + int(y * dilation_y) >= 0 && org_y + int(y * dilation_y) < int(in_h) &&
+                   org_x + int(x * dilation_x) >= 0 && org_x + int(x * dilation_x) < int(in_w))
+                {
+                    for(int c = 0; c < in_c; c++)
+                    {
+                        for(int outz = 0; outz < ZPAR; outz++)
+                        {
+                            sum[outz] += in_ptr[c] * filter_ptr[outz * filter_h * filter_w * in_c + c];
+                        }
+                    }
+                }
+
+                in_ptr += dilation_x * in_c;
+                filter_ptr += in_c;
+            }
+
+            in_ptr += in_w * dilation_y * in_c - dilation_x * in_c * filter_w;
+        }
+
+        if (has_bias)
+        {
+            for (int kern = 0; kern < ZPAR; kern++)
+            {
+                if (depth + kern < out_z)
+                {
+                    int offset = out_offset + (out_y * out_w  + out_x) * out_c + depth + kern;
+                    float out = sum[kern] + bias[bias_index +kern];
+                    if (activation == kRelu)
+                    {
+                        out = out > 0.f ? out : 0.f;
+                    }
+                    else if (activation == kRelu1)
+                    {
+                        out = out > 1.f ? 1.f : out < -1.f ? -1.f : out;
+                    }
+                    else if (activation == kRelu6)
+                    {
+                        out = out > 6.f ? 6.f : out < 0.f ? 0.f : out;
+                    }
+                    convolved_data[offset] = out;
+                }
+            }
+        }
+        else
+        {
+            for (int kern = 0; kern < ZPAR; kern++)
+            {
+                if (depth + kern < out_z)
+                {
+                    int offset = out_offset + (out_y * out_w  + out_x) * out_c + depth + kern;
+                    float out  = sum[kern];
+
+                    if (activation == kRelu)
+                    {
+                        out = out > 0.f ? out : 0.f;
+                    }
+                    else if (activation == kRelu1)
+                    {
+                        out = out > 1.f ? 1.f : out < -1.f ? -1.f : out;
+                    }
+                    else if (activation == kRelu6)
+                    {
+                        out = out > 6.f ? 6.f : out < 0.f ? 0.f : out;
+                    }
+
+                    convolved_data[offset] = out;
+                }
+            }
+        }
+    }
+}
+
+static void convCpuBhwc(float* in_buffer, float* bias_buffer, float* filter_buffer, float* benchmark,
+                        int batch, int group, int has_bias, int in_c, int in_w, int in_h,
+                        int out_c, int out_w, int out_h, int filter_w, int filter_h,
+                        int padding_left, int padding_top, int stride_w, int stride_h,
+                        int dilation_x, int dilation_y, int activation)
+{
+    int in_offset     = 0;
+    int bias_offset   = 0;
+    int filter_offset = 0;
+    int out_offset    = 0;
+    int m             = out_c / group;
+    int bottom_dim    = in_c * in_w * in_h;
+    int top_dim       = out_c * out_w * out_h;
+
+    for (int n = 0; n < batch; ++n)
+    {
+        for (int g = 0; g < group; ++g)
+        {
+            in_offset     = n * bottom_dim + in_w * in_h * (in_c / group) * g;
+            filter_offset = filter_h * filter_w * (in_c / group) * m * g;
+            bias_offset   = m * g;
+            out_offset    = n * top_dim + out_w * out_h * m * g;
+
+            for (int depth = 0; depth < m; ++depth)
+            {
+                for (int out_y = 0; out_y < out_h; ++out_y)
+                {
+                    for (int out_x = 0; out_x < out_w; ++out_x)
+                    {
+                        convOneBhwc(in_buffer, in_offset, filter_buffer, filter_offset, bias_buffer, bias_offset,
+                                    benchmark, out_offset, in_w, in_h, out_w, out_h, padding_left, padding_top,
+                                    has_bias, stride_w, stride_h, filter_w, filter_h, dilation_x, dilation_y,
+                                    in_c, out_c, m, out_x, out_y, depth, activation);
+                    }
+                }
+            }
+        }
+    }
+
+    return;
+}
+
+static bool fake_loadConfig()
+{
+    return false;
+}
+
+static void fake_storeConfig()
+{
+    return;
+}
+
+bool VkCsExecutor::verifyResult(VkConvSpecializedConst& param,
+                                float* in_buffer, float* filter_buffer, float* bias_buffer, float* result_buffer)
+{
+    int batch      = param.batch;
+    int in_c       = param.channels;
+    int in_w       = param.in_w;
+    int in_h       = param.in_h;
+    int out_c      = param.n;
+    int out_w      = param.out_w;
+    int out_h      = param.out_h;
+    int filter_h   = param.filter_h;
+    int filter_w   = param.filter_w;
+    int stride_h   = param.stride_h;
+    int stride_w   = param.stride_w;
+    int pad_h      = param.pad_h;
+    int pad_w      = param.pad_w;
+    int has_bias   = 1;
+    int activation = param.activation;
+    int dilation_x = 1;
+    int dilation_y = 1;
+    int group      = 1;
+
+    const int out_size = batch * out_h * out_w * out_c;
+    float* benchmark   = new float[out_size];
+    float* p_out       = result_buffer;
+
+    convCpuBhwc(in_buffer, bias_buffer, filter_buffer, benchmark, batch, group, has_bias,
+                in_c, in_w, in_h, out_c, out_w, out_h, filter_w, filter_h, pad_w, pad_h,
+                stride_w, stride_h, dilation_x, dilation_y, activation);
+
+    for (int b = 0; b < batch; ++b)
+    {
+        for (int h = 0; h < out_h; ++h)
+        {
+            for (int w = 0; w < out_w; ++w)
+            {
+                for (int c = 0; c < out_c; c++)
+                {
+                    int offset = b * (out_c * out_h * out_w) + h * (out_w * out_c) + w * out_c + c;
+
+                    if ((fabs(p_out[offset] - benchmark[offset]) > 0.1 * fabs(benchmark[offset])) ||
+                        !((fabs(benchmark[offset]) < 1.e-3) && (fabs(p_out[offset] - benchmark[offset]) < 1.e-4)))
+                    {
+                        LOGE("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n",
+                                b, h, w, c, p_out[offset], benchmark[offset]);
+
+                        delete[] benchmark;
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    delete[] benchmark;
     return true;
 }
 
-static bool chn3ToChn4(SpecializaitonConst& param, ShaderConfig& config)
+bool VkCsExecutor::verifyShader(VkConvSpecializedConst& param, ShaderConfig& conf,
+                                VkOperand& in, VkOperand& filter, VkOperand& bias, VkOperand& out)
+{
+    std::string conf_str;
+
+    configToString(conf, conf_str);
+    NN_GPU_DEBUG("VkCsExecutor::verifyShader with %s", conf_str.c_str());
+
+    bool ret = false;
+
+    if (!tuning_convolve(param, conf, in, filter, bias, out))
+    {
+        LOG(ERROR) << "VkCsExecutor::verifyShader tuning_convolve failed.";
+        return ret;
+    }
+
+    const int input_size  = param.batch * param.in_h * param.out_w * param.channels;
+    const int output_size = param.batch * param.out_h * param.out_w * param.n;
+    const int filter_size = param.n * param.filter_h * param.filter_w * param.channels;
+    const int bias_size   = param.n;
+
+    float* in_buffer      = new float[input_size];
+    float* out_buffer     = new float[output_size];
+    float* filter_buffer  = new float[filter_size];
+    float* bias_buffer    = new float[bias_size];
+
+    in.copyToBuffer(in_buffer, input_size);
+    out.copyToBuffer(out_buffer, output_size);
+    filter.copyToBuffer(filter_buffer, filter_size);
+    bias.copyToBuffer(bias_buffer, bias_size);
+
+    ret = verifyResult(param, in_buffer, filter_buffer, bias_buffer, out_buffer);
+
+    delete[] in_buffer;
+    delete[] out_buffer;
+    delete[] filter_buffer;
+    delete[] bias_buffer;
+
+    return ret;
+}
+
+bool VkCsExecutor::tuning_convolve(VkConvSpecializedConst& param, const ShaderConfig& conf,
+                                   VkOperand& in, VkOperand& filter, VkOperand& bias, VkOperand& out)
+{
+    VkSpecializationInfo spec_info;
+    VkSpecializationMapEntry entry[SPEC_CONST_NUM];
+    setSpecInfo(entry, spec_info, param, SPEC_CONST_NUM);
+
+    switch (shader_type)
+    {
+    case CONV_SHADER_TYPE_GEMM_4_8_GENERIC: {
+        opBase->createShaderModule(conv_gemmShader4_8_spv, sizeof(conv_gemmShader4_8_spv));
+        opBase->createPipeline(sizeof(PushConst), &spec_info);
+        break;
+    }
+    case CONV_SHADER_TYPE_GEMM1: {
+        opBase->createShaderModule(conv_gemm1_spv, sizeof(conv_gemm1_spv));
+        opBase->createPipeline(sizeof(PushConst), &spec_info);
+        break;
+    }
+    case CONV_SHADER_TYPE_BASIC: {
+        // todo: shaders of gemm_4_4, gemm_no_mig2col and gemm_4_4_chn3 are not added yet
+        opBase->createShaderModule(conv_spv, sizeof(conv_spv));
+        opBase->createPipeline(sizeof(PushConst), &spec_info);
+        break;
+    }
+    case CONV_SHADER_TYPE_CHN3_TO_CHN4:
+    case CONV_SHADER_TYPE_GEMM_4_4_NO_IMG2COL:
+    case CONV_SHADER_TYPE_GEMM_4_4_GENERIC:
+    case CONV_SHADER_TYPE_GEMM_4_4_CHN3:
+    default: {
+        NOT_REACH_HERE;
+    }
+    }
+
+    opBase->bindOperand(in, 0, opBase->descriptor_set);
+    opBase->bindOperand(filter, 1, opBase->descriptor_set);
+    opBase->bindOperand(bias, 2, opBase->descriptor_set);
+    opBase->bindOperand(out, 3, opBase->descriptor_set);
+
+    if (!computeGroupCount(opBase->group_x, opBase->group_y, opBase->group_z, shader_type, param, conf))
+    {
+        return false;
+    }
+
+    if (shader_type == CONV_SHADER_TYPE_BASIC)
+    {
+        int partition_num = (int)ceil(1.0 * param.n / opBase->group_y);
+        for (int b = 0; b < param.batch; b++)
+        {
+            for (int n = 0; n < partition_num; n++)
+            {
+                opBase->recordCommandBuffer((void*)&param, sizeof(PushConst));
+                opBase->runCommandBuffer();
+            }
+        }
+    }
+    else
+    {
+        opBase->recordCommandBuffer((void*)&param, sizeof(PushConst));
+        opBase->runCommandBuffer();
+    }
+
+    return true;
+}
+
+bool VkCsExecutor::tryShaderConfig(VkConvSpecializedConst& param,
+                                   ShaderConfig& best,
+                                   const std::vector<ShaderConfig>& configs,
+                                   VkOperand& in, VkOperand& filter, VkOperand& bias, VkOperand& out)
+{
+    NN_GPU_PERF("CONV_2D: %s: try shader type: %d\n", __func__, shader_type);
+
+    bool ret = false;
+    ShaderConfig conf;
+    std::string conf_str;
+    TuningTimeMap time_map;
+
+    for (size_t i = 0; i < configs.size(); i ++)
+    {
+        long elapsed_us, t;
+
+        param.local_sz_x   = configs[i].local_size_x;
+        param.local_sz_y   = configs[i].local_size_y;
+        param.local_sz_z   = configs[i].local_size_z;
+
+        conf.local_size_x = configs[i].local_size_x;
+        conf.local_size_y = configs[i].local_size_y;
+        conf.local_size_z = configs[i].local_size_z;
+
+        conf.block_width   = configs[i].block_width;
+        conf.block_height  = configs[i].block_height;
+        conf.block_depth   = configs[i].block_depth;
+
+        // warm up
+        ret = tuning_convolve(param, conf, in, filter, bias, out);
+        if (ret == false)
+        {
+            continue;
+        }
+
+        TIMER_START(conv_time);
+        ret = tuning_convolve(param, conf, in, filter, bias, out);
+        t = TIMER_STOP(conv_time);
+
+        if (ret)
+        {
+            elapsed_us = t;
+
+            configToString(configs[i], conf_str);
+            NN_GPU_PERF("CONV_2D: %s: tune: %8.3f ms, %s\n", __func__, 1.0 * elapsed_us / 1000, conf_str.c_str());
+
+            std::pair<long, int> entry(elapsed_us, i);
+            time_map.insert(entry);
+        }
+        else
+        {
+            elapsed_us = std::numeric_limits<long>::max();
+        }
+    }
+
+    for (TuningTimeMap::iterator it = time_map.begin(); it != time_map.end(); ++it)
+    {
+        ShaderConfig candidate = configs[it->second];
+
+        param.local_sz_x   = candidate.local_size_x;
+        param.local_sz_y   = candidate.local_size_y;
+        param.local_sz_z   = candidate.local_size_z;
+
+        conf.block_width   = candidate.block_width;
+        conf.block_height  = candidate.block_height;
+        conf.block_depth   = candidate.block_depth;
+
+        configToString(candidate, conf_str);
+        out.resetForTune();
+
+        if (verifyShader(param, candidate, in, filter, bias, out))
+        {
+            best = candidate;
+            ret = true;
+        }
+    }
+
+    return ret;
+}
+
+void VkCsExecutor::tune(VkConvSpecializedConst& param, ShaderConfig& conf,
+                        VkOperand& in, VkOperand& filter, VkOperand& bias, VkOperand& out)
+{
+    bool succeed = false;
+    std::vector<ShaderConfig> configs;
+
+    if (!succeed)
+    {
+        configs = genShaderConfigCandidates(param, CONV_SHADER_TYPE_GEMM_4_8_GENERIC);
+        succeed = tryShaderConfig(param, conf, configs, in, filter, bias, out);
+    }
+
+    if (!succeed)
+    {
+        configs = genShaderConfigCandidates(param, CONV_SHADER_TYPE_GEMM1);
+        succeed = tryShaderConfig(param, conf, configs, in, filter, bias, out);
+    }
+
+    if (!succeed)
+    {
+        std::string sig = genConvSignature(param);
+        NN_GPU_PERF("CONV_2D: %s: %s fallback to basic shader, THIS MAY HAVE POOR PERFORMANCE !\n", __func__, sig.c_str());
+        configs = genShaderConfigCandidates(param, CONV_SHADER_TYPE_BASIC);
+        succeed = tryShaderConfig(param, conf, configs, in, filter, bias, out);
+    }
+
+    ASSERT(succeed);
+    return;
+}
+
+static bool chn3ToChn4(VkConvSpecializedConst& param, ShaderConfig& config)
 {
     param.local_sz_x   = 16;
     param.local_sz_y   = 1;
@@ -419,25 +1034,6 @@ static void prepareConfig(const Operation& operation, ShaderConfig& config)
     (void)(config);
 }
 
-static std::string genConvSignature(const SpecializaitonConst& convParam)
-{
-    std::stringstream sig;
-    // Android NN desn't set has_bias, so assume has_bias = 1
-    int has_bias = 1;
-
-    sig << "optype"     << (int)OperationType::CONV_2D << "_"
-        << "batch"      << convParam.batch             << "_"
-        << "in"         << convParam.in_h              << "_" << convParam.in_w     << "_" << convParam.channels << "_"
-        << "out"        << convParam.out_h             << "_" << convParam.out_w    << "_" << convParam.n        << "_"
-        << "filter"     << convParam.filter_h          << "_" << convParam.filter_w << "_"
-        << "pad"        << convParam.pad_h             << "_" << convParam.pad_w    << "_"
-        << "stride"     << convParam.stride_h          << "_" << convParam.stride_w << "_"
-        << "activation" << convParam.activation        << "_"
-        << "bias"       << has_bias;
-
-    return sig.str();
-}
-
 static void string2Config(const char* confString, ShaderConfig &conf)
 {
     sscanf(confString, "type%d_lsz%d_%d_%d_block%d_%d_%d",
@@ -450,9 +1046,13 @@ static void string2Config(const char* confString, ShaderConfig &conf)
                  conf.local_size_z, conf.block_width, conf.block_height, conf.block_depth);
 }
 
-static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConfig& conf)
+void VkCsExecutor::prepareShaderConfig(VkConvSpecializedConst& param, ShaderConfig& conf,
+                                       VkOperand& in, VkOperand& filter, VkOperand& bias, VkOperand& out)
 {
-    const std::string sig = genConvSignature(convParam);
+    const std::string sig = genConvSignature(param);
+
+    bool tuned = false;
+    bool found = false;
 
     mtx.lock();
 
@@ -460,6 +1060,7 @@ static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConf
     if (!is_initialized)
     {
         NN_GPU_DEBUG("prepareShaderConfig: init shaderConfigMap for vulkan backend shader");
+
         int configNum = 0;
         if (sizeof(defaultConfig) > 0)
         {
@@ -485,46 +1086,23 @@ static void prepareShaderConfig(const SpecializaitonConst& convParam, ShaderConf
         return;
     }
 
-    // todo: load from persistent storage & tuning
     NN_GPU_PERF("CONV_2D: %s: config cannot be found from in-memory cache", __func__);
 
+    // todo: load from persistent config
+    found = fake_loadConfig();
+    if (!found)
+    {
+        tune(param, conf, in, filter, bias, out);
+        tuned = true;
+    }
+
+    // todo: store persistent config
+    if (tuned)
+    {
+        fake_storeConfig();
+    }
+
     mtx.unlock();
-}
-
-
-static void setSpecInfo(VkSpecializationMapEntry* entry,
-                        VkSpecializationInfo& spec_info,
-                        const SpecializaitonConst &spec_const,
-                        const int entry_size)
-{
-    SET_SPEC_CONST_ENTRY(entry[0], 0, offsetof(SpecializaitonConst, local_sz_x), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[1], 1, offsetof(SpecializaitonConst, local_sz_y), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[2], 2, offsetof(SpecializaitonConst, local_sz_z), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[3], 3, offsetof(SpecializaitonConst, in_h), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[4], 4, offsetof(SpecializaitonConst, in_w), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[5], 5, offsetof(SpecializaitonConst, out_h), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[6], 6, offsetof(SpecializaitonConst, out_w), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[7], 7, offsetof(SpecializaitonConst, stride_h), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[8], 8, offsetof(SpecializaitonConst, stride_w), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[9], 9, offsetof(SpecializaitonConst, pad_h), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[10], 10, offsetof(SpecializaitonConst, pad_w), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[11], 11, offsetof(SpecializaitonConst, filter_h), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[12], 12, offsetof(SpecializaitonConst, filter_w), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[13], 13, offsetof(SpecializaitonConst, channels), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[14], 14, offsetof(SpecializaitonConst, batch), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[15], 15, offsetof(SpecializaitonConst, m), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[16], 16, offsetof(SpecializaitonConst, k), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[17], 17, offsetof(SpecializaitonConst, n), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[18], 18, offsetof(SpecializaitonConst, activation), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[19], 19, offsetof(SpecializaitonConst, num_items), sizeof(int));
-    SET_SPEC_CONST_ENTRY(entry[20], 20, offsetof(SpecializaitonConst, tail_m), sizeof(int));
-
-    spec_info.mapEntryCount = entry_size;
-    spec_info.pMapEntries   = entry;
-    spec_info.dataSize      = sizeof(spec_const);
-    spec_info.pData         = &spec_const;
-
-    return;
 }
 
 bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
@@ -555,10 +1133,10 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
     PaddingScheme padding_mode;
 
-    SpecializaitonConst spec_const(in_shape[kShapeIdxHeight], in_shape[kShapeIdxWidth],
-                                   out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth],
-                                   filter_shape[kShapeIdxHeight], filter_shape[kShapeIdxWidth],
-                                   in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], M, K, N, tail_m);
+    VkConvSpecializedConst spec_const(in_shape[kShapeIdxHeight], in_shape[kShapeIdxWidth],
+                                      out_shape[kShapeIdxHeight], out_shape[kShapeIdxWidth],
+                                      filter_shape[kShapeIdxHeight], filter_shape[kShapeIdxWidth],
+                                      in_shape[kShapeIdxChannel], in_shape[kShapeIdxBatch], M, K, N, tail_m);
 
     PushConst push_const;
 
@@ -688,7 +1266,14 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         }
 
         // prepare shader config
-        prepareShaderConfig(spec_const, config);
+        if (converted_to_chn4)
+        {
+            prepareShaderConfig(spec_const, config, chn4_in, chn4_filter, bias, out);
+        }
+        else
+        {
+            prepareShaderConfig(spec_const, config, in, filter, bias, out);
+        }
 
         spec_const.local_sz_x = config.local_size_x;
         spec_const.local_sz_y = config.local_size_y;

@@ -326,6 +326,16 @@ void VkOperand::copyTo(VkOperand& dst)
 
 #endif
 
+void VkOperand::resetForTune()
+{
+    memInfo->resetForTune();
+}
+
+void VkOperand::copyToBuffer(float* to_buf, const size_t buf_size)
+{
+    memInfo->copyToBuffer(to_buf, buf_size);
+}
+
 //added done
 
 NAME_SPACE_STOP
