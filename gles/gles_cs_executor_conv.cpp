@@ -922,9 +922,9 @@ bool verifyResult(ConvParam &convParam, float* in_buffer, float* filter_buffer, 
                 for (int c = 0; c < output_chn; c++)
                 {
                     int offset = b * (output_chn * output_height * output_width) + h * (output_width * output_chn) + w * output_chn + c;
-                    if (fabs(pOut[offset] - benchmark[offset]) > 0.1 * fabs(benchmark[offset]) &&
-                        !(fabs(benchmark[offset]) < 1.e-3 &&
-                        fabs(pOut[offset] - benchmark[offset]) < 1.e-4))
+
+                    if (fabs(pOut[offset] - benchmark[offset]) > 0.1 * fabs(benchmark[offset]) ||
+                        !(fabs(benchmark[offset]) < 1.e-3 && fabs(pOut[offset] - benchmark[offset]) < 1.e-4))
                     {
                         LOGE("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n",
                               b, h, w, c, pOut[offset], benchmark[offset]);
