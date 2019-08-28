@@ -1249,13 +1249,21 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
             int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
-            for (uint32_t b = 0; b < filter_shape[kShapeIdxBatch]; b++)
+            if (shader_type == CONV_SHADER_TYPE_BASIC)
             {
-                for (int n = 0; n < partition_num; n++)
+                for (uint32_t b = 0; b < filter_shape[kShapeIdxBatch]; b++)
                 {
-                    opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
-                    opBase->runCommandBuffer();
+                    for (int n = 0; n < partition_num; n++)
+                    {
+                        opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                        opBase->runCommandBuffer();
+                    }
                 }
+            }
+            else
+            {
+                opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                opBase->runCommandBuffer();
             }
 
             spec_const.k = spec_const.k / 3 * 4;
@@ -1349,13 +1357,21 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
 
     int partition_num = (int)ceil(1.0 * N / opBase->group_y);
 
-    for (uint32_t b = 0; b < in_shape[kShapeIdxBatch]; b++)
+    if (shader_type == CONV_SHADER_TYPE_BASIC)
     {
-        for (int n = 0; n < partition_num; n++)
+        for (uint32_t b = 0; b < in_shape[kShapeIdxBatch]; b++)
         {
-            opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
-            opBase->runCommandBuffer();
+            for (int n = 0; n < partition_num; n++)
+            {
+                opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+                opBase->runCommandBuffer();
+            }
         }
+    }
+    else
+    {
+        opBase->recordCommandBuffer((void*)&push_const, sizeof(PushConst));
+        opBase->runCommandBuffer();
     }
 
     // out.dumpToFile("out", spec_const.n);
