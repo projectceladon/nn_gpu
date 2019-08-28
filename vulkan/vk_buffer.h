@@ -33,6 +33,8 @@ public:
     VkBuffer getVkBuffer() { return buffer; }
     uint8_t* map();
     void unMap();
+    void resetForTune();
+    void copyToBuffer(float* to_buf, const size_t buf_size);
 
 private:
     Buffer();

@@ -171,4 +171,47 @@ void Buffer::unMap()
     vkUnmapMemory(device, memory);
 }
 
+void Buffer::resetForTune()
+{
+    if (memory != VK_NULL_HANDLE)
+    {
+        uint8_t* data;
+        VK_CHECK_RESULT(vkMapMemory(device, memory, 0, length, 0, (void **)&data));
+
+        const size_t buf_size = length / 4;
+        float* fp = reinterpret_cast<float *>(data);
+
+        // reset output
+        for (size_t i = 0; i < buf_size; ++i)
+        {
+            fp[i] = 7.28f;
+        }
+
+        vkUnmapMemory(device, memory);
+    }
+}
+
+void Buffer::copyToBuffer(float* to_buf, const size_t buf_size)
+{
+    ASSERT(to_buf != nullptr && buf_size > 0);
+
+    if (memory != VK_NULL_HANDLE)
+    {
+        uint8_t* data;
+        VK_CHECK_RESULT(vkMapMemory(device, memory, 0, length, 0, (void **)&data));
+
+        float* fp = reinterpret_cast<float*>(data);
+        if (buf_size <= length)
+        {
+            memcpy(to_buf, fp, buf_size);
+        }
+        else
+        {
+            LOG(ERROR) << "copyToBuffer: buf_size is greater than vk buffer size";
+        }
+
+        vkUnmapMemory(device, memory);
+    }
+}
+
 NAME_SPACE_STOP

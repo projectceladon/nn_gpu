@@ -43,6 +43,8 @@ public:
     VkBuffer getVkBuffer();
     void dump();
     void dumpToFile(const char* file_name, const int channels = 0);
+    void resetForTune();
+    void copyToBuffer(float* to_buf, const size_t buf_size);
 private:
     uint8_t* userptr;
     size_t length;

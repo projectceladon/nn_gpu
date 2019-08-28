@@ -87,4 +87,20 @@ void VkMemoryInfo::dumpToFile(const char* file_name, const int channels)
     }
 }
 
+void VkMemoryInfo::resetForTune()
+{
+    if (buffer)
+    {
+        buffer->resetForTune();
+    }
+}
+
+void VkMemoryInfo::copyToBuffer(float* to_buf, const size_t buf_size)
+{
+    if (buffer)
+    {
+        buffer->copyToBuffer(to_buf, buf_size);
+    }
+}
+
 NAME_SPACE_STOP
