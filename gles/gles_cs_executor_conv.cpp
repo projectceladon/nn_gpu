@@ -1385,6 +1385,7 @@ bool GlesCsExecutor::doCONV_2D(const Operation& operation, GlesOperationResource
             glFinish();
 
         // output.dumpToFile("out", convParam.outC);
+        output.dump();
     }
     else
     {
