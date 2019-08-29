@@ -26,7 +26,7 @@ extern const unsigned int conv_spv[1700];
 extern const unsigned int concat_spv[628];
 extern const unsigned int softmax_spv[900];
 extern const unsigned int avg_pool_spv[2057];
-extern const unsigned int max_pool_spv[1449];
+extern const unsigned int max_pool_spv[1894];
 extern const unsigned int lrn_spv[1730];
 extern const unsigned int dw_conv_spv[2231];
 extern const unsigned int logistic_spv[368];
