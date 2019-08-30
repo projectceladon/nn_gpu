@@ -290,7 +290,7 @@ static const char* defaultConfig[] =
     /* temporarily for unit test purpose */
     "optype3_batch1_in3_3_4_out3_3_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type1_lsz1_4_1_block1_1_1",
     "optype3_batch1_in8_8_4_out6_6_1_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz4_16_1_block8_4_1",
-    "optype3_batch1_in7_7_1024_out7_7_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1"
+    "optype3_batch1_in7_7_1024_out7_7_1_filter1_1_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
     "optype3_batch1_in8_8_8_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
     "optype3_batch1_in7_7_8_out5_5_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_1_1_block8_4_1",
     "optype3_batch1_in8_8_4_out6_6_8_filter3_3_pad0_0_stride1_1_activation0_bias1", "type5_lsz1_256_1_block8_4_1"
