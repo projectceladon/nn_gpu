@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_0_BASE_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_0_BASE_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_1_BASE_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_1_BASE_H
 
 #include <android/log.h>
 #include <android-base/logging.h>
@@ -8,7 +8,7 @@
 namespace android { \
 namespace hardware { \
 namespace neuralnetworks { \
-namespace V1_0 { \
+namespace V1_1 { \
 namespace implementation {
 
 #define NAME_SPACE_STOP \
@@ -20,7 +20,7 @@ namespace implementation {
 
 static const char* kTAG = "NN_GPU_HAL";
 
-#define NN_TRACE 0
+#define NN_TRACE 1
 
 #define NN_GPU_ENTRY()                                                  \
     do {                                                                \
@@ -40,12 +40,12 @@ static const char* kTAG = "NN_GPU_HAL";
                 LOG(INFO) << "NN_GPU_HAL call: " << __FUNCTION__;       \
         } while(0);
 
-#define NN_DEBUG 0
+#define NN_DEBUG 1
 #define NN_GPU_DEBUG(...) \
         if (NN_DEBUG) \
             ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
 
-#define NN_PERF 0
+#define NN_PERF 1
 #define NN_GPU_PERF(...) \
         if (NN_PERF) \
             ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))

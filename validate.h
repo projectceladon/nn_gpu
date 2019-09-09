@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_0_VALIDATE_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_0_VALIDATE_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_1_VALIDATE_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_1_VALIDATE_H
 
 #include "hal_types.h"
 
@@ -81,6 +81,10 @@ bool validateModel(const Model& model);
 // are correctly defined, as these are specific to each implementation.
 // Each driver should do their own validation of OEM types.
 bool validateRequest(const Request& request, const Model& model);
+
+
+// Verfies that the preference is valid, from nn_gpu_hal v1_1.
+bool validateExecutionPreference(const ExecutionPreference& preference);
 
 NAME_SPACE_STOP
 
