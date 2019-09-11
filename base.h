@@ -8,7 +8,7 @@
 namespace android { \
 namespace hardware { \
 namespace neuralnetworks { \
-namespace V1_0 { \
+namespace V1_1 { \
 namespace implementation {
 
 #define NAME_SPACE_STOP \
