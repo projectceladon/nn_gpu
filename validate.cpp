@@ -1679,4 +1679,11 @@ bool validateRequest(const Request& request, const Model& model)
             validatePools(request.pools));
 }
 
+bool validateExecutionPreference(const ExecutionPreference& preference)
+{
+    return (preference == ExecutionPreference::LOW_POWER ||
+            preference == ExecutionPreference::FAST_SINGLE_ANSWER ||
+            preference == ExecutionPreference::SUSTAINED_SPEED);
+}
+
 NAME_SPACE_STOP

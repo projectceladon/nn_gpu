@@ -14,10 +14,10 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := android.hardware.neuralnetworks@1.0-service-gpgpu
+LOCAL_MODULE := android.hardware.neuralnetworks@1.1-service-gpgpu
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
-LOCAL_INIT_RC := android.hardware.neuralnetworks@1.0-service-gpgpu.rc
+LOCAL_INIT_RC := android.hardware.neuralnetworks@1.1-service-gpgpu.rc
 LOCAL_SRC_FILES := \
 service.cpp \
 device.cpp \
@@ -112,6 +112,7 @@ libutils \
 libEGL \
 libGLESv3 \
 android.hardware.neuralnetworks@1.0 \
+android.hardware.neuralnetworks@1.1 \
 android.hidl.allocator@1.0 \
 android.hidl.memory@1.0
 
