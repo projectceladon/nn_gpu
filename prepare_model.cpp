@@ -24,8 +24,7 @@ PreparedModel::PreparedModel(const Model& model)
 bool PreparedModel::initialize()
 {
     NN_GPU_CALL();
-    exec->initPerModel();
-    return true;
+    return exec->initPerModel();
 }
 
 void PreparedModel::asyncExecute(const Request& request,
