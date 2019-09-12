@@ -134,10 +134,10 @@ void Buffer::dumpToFile(const char* fileName, const int channels)
             }
             cur_c++;
         }
-
-        fclose(file_ptr);
         vkUnmapMemory(device, memory);
     }
+
+    fclose(file_ptr);
 }
 
 Buffer::Buffer(size_t size_in_bytes, const uint8_t* data)

@@ -23,12 +23,12 @@ struct GlesCsProgramKeyBasic
 {
     GlesCsProgramKeyBasic(OperationType type)
     {
-        size_t size = sizeof(*this);
+        size_t size = sizeof(struct GlesCsProgramKeyBasic);
         memset(this, 0xBB, size);
         opType = type;
     }
     OperationType opType;
-    int32_t activation;
+    int32_t activation = {0};
     uint32_t localSizeX;
     uint32_t localSizeY;
     uint32_t localSizeZ;

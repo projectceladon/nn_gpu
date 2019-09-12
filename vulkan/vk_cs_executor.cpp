@@ -76,61 +76,71 @@ bool VkCsExecutor::initPerProcess()
         NN_GPU_DEBUG("have already initialized, directly return");
         return true;
     }
-	// Load Android vulkan and retrieve vulkan API function pointers
-	if (!InitVulkan()) {
-	  LOGE("Vulkan is unavailable, install vulkan and re-start");
-	  return false;
-	}
+    // Load Android vulkan and retrieve vulkan API function pointers
+    if (!InitVulkan()) {
+        LOGE("Vulkan is unavailable, install vulkan and re-start");
+        return false;
+    }
 	
-	VkApplicationInfo appInfo = {
-		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-		.pNext = nullptr,
-		.apiVersion = VK_MAKE_VERSION(1, 0, 0),
-		.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-		.engineVersion = VK_MAKE_VERSION(1, 0, 0),
-		.pApplicationName = "Vk NN GPU",
-		.pEngineName = "vk_nn",
-	};
+    VkApplicationInfo appInfo = {
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pNext = nullptr,
+        .apiVersion = VK_MAKE_VERSION(1, 0, 0),
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pApplicationName = "Vk NN GPU",
+        .pEngineName = "vk_nn",
+    };
 	
-	// prepare necessary extensions: Vulkan on Android need these to function
-	std::vector<const char *> instanceExt, deviceExt;
+    // prepare necessary extensions: Vulkan on Android need these to function
+    std::vector<const char *> instanceExt, deviceExt;
 #if 0
-	instanceExt.push_back("VK_KHR_surface");
-	instanceExt.push_back("VK_KHR_android_surface");
-	deviceExt.push_back("VK_KHR_swapchain");
+    instanceExt.push_back("VK_KHR_surface");
+    instanceExt.push_back("VK_KHR_android_surface");
+    deviceExt.push_back("VK_KHR_swapchain");
 #endif
 
-	// Create the Vulkan instance
-	VkInstanceCreateInfo instanceCreateInfo{
-		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-		.pNext = nullptr,
-		.pApplicationInfo = &appInfo,
-		.enabledExtensionCount = static_cast<uint32_t>(instanceExt.size()),
-		.ppEnabledExtensionNames = instanceExt.data(),
-		.enabledLayerCount = 0,
-		.ppEnabledLayerNames = nullptr,
-	};
-	CALL_VK(vkCreateInstance(&instanceCreateInfo, nullptr, &kInstance));
+    // Create the Vulkan instance
+    VkInstanceCreateInfo instanceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pNext = nullptr,
+        .pApplicationInfo = &appInfo,
+        .enabledExtensionCount = static_cast<uint32_t>(instanceExt.size()),
+        .ppEnabledExtensionNames = instanceExt.data(),
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
+    };
+    CALL_VK(vkCreateInstance(&instanceCreateInfo, nullptr, &kInstance));
 	
-	// Find one GPU to use:
-	// On Android, every GPU device is equal -- supporting
-	// graphics/compute/present
-	// for this sample, we use the very first GPU device found on the system
-	uint32_t gpuCount = 0;
-	CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, nullptr));
-	VkPhysicalDevice tmpGpus[gpuCount];
-	CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, tmpGpus));
-	kPhysicalDevice = tmpGpus[0];  // Pick up the first GPU Device
-	
-	// check for vulkan info on this GPU device
-	vkGetPhysicalDeviceProperties(kPhysicalDevice, &kDeviceProps);
-	NN_GPU_DEBUG("Vulkan Physical Device Name: %s", kDeviceProps.deviceName);
-	NN_GPU_DEBUG("Vulkan Physical Device Info: apiVersion: %x \n\t driverVersion: %x",
-		 kDeviceProps.apiVersion, kDeviceProps.driverVersion);
-	NN_GPU_DEBUG("API Version Supported: %d.%d.%d",
-		 VK_VERSION_MAJOR(kDeviceProps.apiVersion),
-		 VK_VERSION_MINOR(kDeviceProps.apiVersion),
-		 VK_VERSION_PATCH(kDeviceProps.apiVersion));
+    // Find one GPU to use:
+    // On Android, every GPU device is equal -- supporting
+    // graphics/compute/present
+    // for this sample, we use the very first GPU device found on the system
+    uint32_t gpuCount = 0;
+    CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, nullptr));
+
+    if (gpuCount > 0)
+    {
+        VkPhysicalDevice tmpGpus[gpuCount];
+        CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, tmpGpus));
+        kPhysicalDevice = tmpGpus[0];  // Pick up the first GPU Device
+    }
+    else
+    {
+        initialized = false;
+        NN_GPU_DEBUG("enumerate physical devices failed");
+        return false;
+    }
+
+    // check for vulkan info on this GPU device
+    vkGetPhysicalDeviceProperties(kPhysicalDevice, &kDeviceProps);
+    NN_GPU_DEBUG("Vulkan Physical Device Name: %s", kDeviceProps.deviceName);
+    NN_GPU_DEBUG("Vulkan Physical Device Info: apiVersion: %x \n\t driverVersion: %x",
+        kDeviceProps.apiVersion, kDeviceProps.driverVersion);
+    NN_GPU_DEBUG("API Version Supported: %d.%d.%d",
+        VK_VERSION_MAJOR(kDeviceProps.apiVersion),
+        VK_VERSION_MINOR(kDeviceProps.apiVersion),
+        VK_VERSION_PATCH(kDeviceProps.apiVersion));
     NN_GPU_DEBUG("limit invocations is %d, group size limit is %d, %d, %d, group count is %d, %d, %d",
         kDeviceProps.limits.maxComputeWorkGroupInvocations,
         kDeviceProps.limits.maxComputeWorkGroupSize[0],
@@ -140,35 +150,33 @@ bool VkCsExecutor::initPerProcess()
         kDeviceProps.limits.maxComputeWorkGroupCount[1],
         kDeviceProps.limits.maxComputeWorkGroupCount[2]); 
 
-	kQueueFamilyIndex = getComputeQueueFamilyIndex();
+    kQueueFamilyIndex = getComputeQueueFamilyIndex();
 	
-	// Create a logical device from GPU we picked
-	float priorities[] = {
-		1.0f,
-	};
-	VkDeviceQueueCreateInfo queueCreateInfo{
-		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		.pNext = nullptr,
-		.flags = 0,
-		.queueCount = 1,
-		.queueFamilyIndex = kQueueFamilyIndex,
-		.pQueuePriorities = priorities,
-	};
+    // Create a logical device from GPU we picked
+    float priorities[] = { 1.0f };
+
+    VkDeviceQueueCreateInfo queueCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .queueCount = 1,
+        .queueFamilyIndex = kQueueFamilyIndex,
+        .pQueuePriorities = priorities,
+    };
 	
-	VkDeviceCreateInfo deviceCreateInfo{
-		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.pNext = nullptr,
-		.queueCreateInfoCount = 1,
-		.pQueueCreateInfos = &queueCreateInfo,
-		.enabledLayerCount = 0,
-		.ppEnabledLayerNames = nullptr,
-		.enabledExtensionCount = static_cast<uint32_t>(deviceExt.size()),
-		.ppEnabledExtensionNames = deviceExt.data(),
-		.pEnabledFeatures = nullptr,
-	};
+    VkDeviceCreateInfo deviceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = nullptr,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queueCreateInfo,
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExt.size()),
+        .ppEnabledExtensionNames = deviceExt.data(),
+        .pEnabledFeatures = nullptr,
+    };
 	
-	CALL_VK(
-		vkCreateDevice(kPhysicalDevice, &deviceCreateInfo, nullptr, &kDevice));
+    CALL_VK(vkCreateDevice(kPhysicalDevice, &deviceCreateInfo, nullptr, &kDevice));
     NN_GPU_DEBUG("device is 0x%llx", reinterpret_cast<unsigned long long>(kDevice));
 
     // Get a handle to the only member of the queue family.
@@ -183,11 +191,11 @@ bool VkCsExecutor::initPerProcess()
     commandPoolCreateInfo.queueFamilyIndex = kQueueFamilyIndex;
     VK_CHECK_RESULT(vkCreateCommandPool(kDevice, &commandPoolCreateInfo, NULL, &kCmdPool));
 
-	initialized = true;
+    initialized = true;
 
     NN_GPU_EXIT();
 
-	return true;
+    return true;
 }
 
 void VkCsExecutor::deinitPerProcess()

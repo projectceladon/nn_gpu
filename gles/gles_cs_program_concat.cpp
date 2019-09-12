@@ -71,7 +71,6 @@ void GlesCsProgramManager::getShaderSourceCONCATENATION(const void* progKey, std
             break;
         default:
             NOT_REACH_HERE;
-            break;
     }
     ss << concatShader;
     src = ss.str();

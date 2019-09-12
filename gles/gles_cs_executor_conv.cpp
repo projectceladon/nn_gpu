@@ -55,8 +55,11 @@ struct ShaderConfig
         blockWidth  = bx;
         blockHeight = by;
         blockDepth  = bz;
-    }
-    ShaderConfig(){}
+    };
+
+    ShaderConfig(): localSizeX(0), localSizeY(0), localSizeZ(0),
+        blockWidth(0), blockHeight(0), blockDepth(0), shaderType(0)
+    {};
 
     int localSizeX;
     int localSizeY;
@@ -675,8 +678,8 @@ bool convolveTimed(ConvParam& convParam,
                    long& elapsedTime,
                    bool syncPerIter)
 {
-    bool res;
-    long t;
+    bool res = false;
+    long t = 0.0;
     
     // warm up run
     if (!convolve(convParam, shaderConfig, progMgr))
