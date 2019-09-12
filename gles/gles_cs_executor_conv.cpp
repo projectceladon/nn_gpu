@@ -675,9 +675,11 @@ bool convolveTimed(ConvParam& convParam,
                    long& elapsedTime,
                    bool syncPerIter)
 {
-    bool res;
     long t;
-    
+    bool res = true;
+
+    if (iter < 1)
+        return false;
     // warm up run
     if (!convolve(convParam, shaderConfig, progMgr))
         return false;
