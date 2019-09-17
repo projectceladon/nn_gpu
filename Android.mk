@@ -96,7 +96,6 @@ LOCAL_CFLAGS += -DTARGET_KBL
 endif
 
 LOCAL_C_INCLUDES := \
-frameworks/native/vulkan/include \
 frameworks/ml/nn/common/include
 
 LOCAL_STATIC_LIBRARIES := libneuralnetworks_common
@@ -114,6 +113,8 @@ liblog \
 libutils \
 libEGL \
 libGLESv3 \
+libvulkan \
+android.hardware.neuralnetworks@1.2 \
 android.hardware.neuralnetworks@1.1 \
 android.hardware.neuralnetworks@1.0 \
 android.hidl.allocator@1.0 \
