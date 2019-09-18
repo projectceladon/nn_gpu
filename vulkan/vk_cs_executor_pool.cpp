@@ -126,9 +126,9 @@ bool VkCsExecutor::doPool(const Operation& operation, ShaderConfig& config, cons
                                  &param.padding_top);
     }
 
-    int32_t lsz_x  = 8;
-    int32_t lsz_y  = 8;
-    int32_t lsz_z  = 1;
+    int32_t lsz_x  = config.local_size_x;
+    int32_t lsz_y  = config.local_size_y;
+    int32_t lsz_z  = config.local_size_z;
     int32_t item_z = 1;
 
     opBase->group_x = ceil(static_cast<float>(param.out_width) / lsz_x);
@@ -166,7 +166,7 @@ bool VkCsExecutor::doAVERAGE_POOL_2D(const Operation& operation)
     ASSERT(operation.type == OperationType::AVERAGE_POOL_2D);
     bool ret = false;
 
-    ShaderConfig config = {DEFAULT_LOCAL_SZ, 1, 1, 1, 1, 1};
+    ShaderConfig config = {8, 8, 1, 1, 1, 1};
     prepareConfig(operation, config);
     ret = doPool(operation, config, kPoolTypeAvg);
 
@@ -181,7 +181,7 @@ bool VkCsExecutor::doMAX_POOL_2D(const Operation& operation)
     ASSERT(operation.type == OperationType::MAX_POOL_2D);
     bool ret = false;
 
-    ShaderConfig config = {DEFAULT_LOCAL_SZ, 1, 1, 1, 1, 1};
+    ShaderConfig config = {8, 8, 1, 1, 1, 1};
     prepareConfig(operation, config);
     ret = doPool(operation, config, kPoolTypeMax);
 

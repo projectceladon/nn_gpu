@@ -22,7 +22,7 @@
 
 NAME_SPACE_BEGIN
 
-VkOpBase::VkOpBase()
+VkOpBase::VkOpBase(): group_x(0), group_y(0), group_z(0)
 {
     NN_GPU_CALL();
     device = kDevice;

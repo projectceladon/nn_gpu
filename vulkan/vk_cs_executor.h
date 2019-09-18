@@ -30,7 +30,9 @@ NAME_SPACE_BEGIN
 struct ShaderConfig
 {
 public:
-    ShaderConfig()
+    ShaderConfig():
+        local_size_x(0), local_size_y(0), local_size_z(0),
+        block_width(0), block_height(0), block_depth(0)
     {};
 
     ShaderConfig(const int lsz_x,
@@ -53,10 +55,17 @@ public:
 
 struct VkConvSpecializedConst {
 public:
-    VkConvSpecializedConst() {};
+    VkConvSpecializedConst():
+        local_sz_x(0), local_sz_y(0), local_sz_z(0), in_h(0), in_w(0), out_h(0), out_w(0),
+        stride_h(0), stride_w(0), pad_h(0), pad_w(0), filter_h(0), filter_w(0), channels(0),
+        batch(0), m(0), k(0), n(0), activation(0), num_items(0), tail_m(0)
+    {};
+
     VkConvSpecializedConst(int ih, int iw, int oh, int ow, int fh,
-                           int fw, int chn, int bat, int M, int K, int N, int tm):
-        in_h(ih), in_w(iw), out_h(oh), out_w(ow), filter_h(fh), filter_w(fw),
+                           int fw, int chn, int bat, int M, int K,
+                           int N, int tm):
+        local_sz_x(0), local_sz_y(0), local_sz_z(0), in_h(ih), in_w(iw), out_h(oh), out_w(ow),
+        stride_h(0), stride_w(0), pad_h(0), pad_w(0), filter_h(fh), filter_w(fw),
         channels(chn), batch(bat), m(M), k(K), n(N), tail_m(tm)
     {};
 

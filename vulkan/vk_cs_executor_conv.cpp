@@ -1145,9 +1145,10 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
         if (inCount == 10)
         {
             uint32_t padding_left   = operands[ins[3]].getScalarData<uint32_t>();
-            uint32_t padding_right  = operands[ins[4]].getScalarData<uint32_t>();
             uint32_t padding_top    = operands[ins[5]].getScalarData<uint32_t>();
-            uint32_t padding_bottom = operands[ins[6]].getScalarData<uint32_t>();
+
+            // uint32_t padding_right  = operands[ins[4]].getScalarData<uint32_t>();
+            // uint32_t padding_bottom = operands[ins[6]].getScalarData<uint32_t>();
 
             spec_const.pad_w        = padding_left;
             spec_const.pad_h        = padding_top;
