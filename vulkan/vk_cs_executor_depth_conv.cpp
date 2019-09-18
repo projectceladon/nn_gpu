@@ -43,8 +43,10 @@ struct SpecializaitonConst {
 public:
     SpecializaitonConst(int ih, int iw, int oh, int ow, int dh, int dw,
                         int fh, int fw, int chn, int bias, int M, int K, int N):
-        in_h(ih), in_w(iw), out_h(oh), out_w(ow), dilation_h(dh), dilation_w(dw), filter_h(fh),
-        filter_w(fw), channels(chn), has_bias(bias), m(M), k(K), n(N)
+        local_sz_x(0), local_sz_y(0), local_sz_z(0),
+        in_h(ih), in_w(iw), out_h(oh), out_w(ow), stride_h(0), stride_w(0), dilation_h(dh), dilation_w(dw),
+        pad_h(0), pad_w(0), filter_h(fh), filter_w(fw), channels(chn), has_bias(bias),
+        m(M), k(K), n(N), depth_multiplier(0), activation(0)
     {};
 
     int local_sz_x;

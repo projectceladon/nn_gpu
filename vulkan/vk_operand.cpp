@@ -62,8 +62,8 @@ bool VkOperand::setArg(const RequestArgument& from)
     }
 
     if (from.hasNoValue) {
-        ASSERT(!"what's happened");
         lifetime = OperandLifeTime::NO_VALUE;
+        ASSERT(!"what's happened");
     }
     else
     {

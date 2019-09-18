@@ -36,13 +36,13 @@ struct GlesCsProgramKeyBasic
 
 struct GlesCsProgramKeyAdd : GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyAdd() : GlesCsProgramKeyBasic(OperationType::ADD) {}
+    GlesCsProgramKeyAdd() : GlesCsProgramKeyBasic(OperationType::ADD), broadcast(false) {};
     bool broadcast;
 };
 
 struct GlesCsProgramKeyConcatenation: GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyConcatenation() : GlesCsProgramKeyBasic(OperationType::CONCATENATION) {}
+    GlesCsProgramKeyConcatenation() : GlesCsProgramKeyBasic(OperationType::CONCATENATION), lastaxis(false) {};
     bool lastaxis;
 };
 
@@ -71,8 +71,11 @@ struct ConvParam
         padW = padw;
         activation = activ;
         hasBias = hasbias;
-    }
-    ConvParam(){}
+    };
+
+    ConvParam(): batch(0), inH(0), inW(0), inC(0), outH(0), outW(0), outC(0),
+        filterH(0), filterW(0), strideH(0), strideW(0), padH(0), padW(0), activation(0), hasBias(0)
+    {};
 
     int batch;
     int inH;
@@ -93,7 +96,10 @@ struct ConvParam
 
 struct GlesCsProgramKeyConv: GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyConv() : GlesCsProgramKeyBasic(OperationType::CONV_2D) {}
+    GlesCsProgramKeyConv() :
+        GlesCsProgramKeyBasic(OperationType::CONV_2D), blockHeight(0), blockWidth(0), blockDepth(0), shaderType(0)
+    {};
+
     int blockHeight;
     int blockWidth;
     int blockDepth;
@@ -103,7 +109,7 @@ struct GlesCsProgramKeyConv: GlesCsProgramKeyBasic
 
 struct GlesCsProgramKeyDepthConv: GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyDepthConv() : GlesCsProgramKeyBasic(OperationType::DEPTHWISE_CONV_2D) {}
+    GlesCsProgramKeyDepthConv() : GlesCsProgramKeyBasic(OperationType::DEPTHWISE_CONV_2D), itemZ(0) {};
     uint32_t itemZ;
 };
 
@@ -114,21 +120,27 @@ struct GlesCsProgramKeyLRN: GlesCsProgramKeyBasic
 
 struct GlesCsProgramKeyAvgPool: GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyAvgPool() : GlesCsProgramKeyBasic(OperationType::AVERAGE_POOL_2D) {}
+    GlesCsProgramKeyAvgPool() : GlesCsProgramKeyBasic(OperationType::AVERAGE_POOL_2D),
+        itemZ(0), batch(0)
+    {};
+
     uint32_t itemZ;
     uint32_t batch;
 };
 
 struct GlesCsProgramKeyMaxPool: GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyMaxPool() : GlesCsProgramKeyBasic(OperationType::MAX_POOL_2D) {}
+    GlesCsProgramKeyMaxPool() : GlesCsProgramKeyBasic(OperationType::MAX_POOL_2D),
+        itemZ(0), batch(0)
+    {};
+
     uint32_t itemZ;
     uint32_t batch;
 };
 
 struct GlesCsProgramKeyMul : GlesCsProgramKeyBasic
 {
-    GlesCsProgramKeyMul() : GlesCsProgramKeyBasic(OperationType::MUL) {}
+    GlesCsProgramKeyMul() : GlesCsProgramKeyBasic(OperationType::MUL), broadcast(false) {};
     bool broadcast;
 };
 
