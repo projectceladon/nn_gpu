@@ -347,6 +347,11 @@ static void configToString(const ShaderConfig& conf, std::string& str)
 static bool computeGroupCount(int& gx, int& gy, int& gz, const int type,
                               const VkConvSpecializedConst& param, const ShaderConfig& conf)
 {
+    if (param.local_sz_x == 0 || param.local_sz_y == 0 || param.local_sz_z == 0)
+    {
+        return false;
+    }
+
     switch (type)
     {
     case CONV_SHADER_TYPE_BASIC: {
@@ -1339,11 +1344,16 @@ bool VkCsExecutor::convolve(const Operation& operation, ShaderConfig& config)
     }
 
     // todo: should be moved to opBase
-    if (false == computeGroupCount(opBase->group_x, opBase->group_y, opBase->group_z, shader_type, spec_const, config))
+    if (spec_const.local_sz_x == 0 || spec_const.local_sz_y == 0 || spec_const.local_sz_z == 0)
+    {
+        NOT_REACH_HERE;
+    }
+    else if (false == computeGroupCount(opBase->group_x, opBase->group_y, opBase->group_z, shader_type, spec_const, config))
     {
         NN_GPU_DEBUG("VkCsExecutor::doCONV_2D: computeGroupCount failed");
         return false;
     }
+
     // todo: duplicated, remove it
     opBase->setGroupSize(opBase->group_x, opBase->group_y, opBase->group_z);
 

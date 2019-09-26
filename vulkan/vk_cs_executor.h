@@ -66,7 +66,7 @@ public:
                            int N, int tm):
         local_sz_x(0), local_sz_y(0), local_sz_z(0), in_h(ih), in_w(iw), out_h(oh), out_w(ow),
         stride_h(0), stride_w(0), pad_h(0), pad_w(0), filter_h(fh), filter_w(fw),
-        channels(chn), batch(bat), m(M), k(K), n(N), tail_m(tm)
+        channels(chn), batch(bat), m(M), k(K), n(N), activation(0), num_items(0), tail_m(tm)
     {};
 
     int local_sz_x;

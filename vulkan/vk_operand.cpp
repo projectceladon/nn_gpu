@@ -202,17 +202,23 @@ inline int elementCount(const Shape& shape, int start = -1, int end = -1)
 
 int VkOperand::getElementCount()
 {
-    return elementCount(dimensions);
+    int count = 0;
+    count = elementCount(dimensions);
+    return count;
 }
 
 int VkOperand::getElementCount(int32_t axis)
 {
-    return elementCount(dimensions, axis);
+    int count = 0;
+    count = elementCount(dimensions, axis);
+    return count;
 }
 
 int VkOperand::getElementCount(int32_t start_axis, int32_t end_axis)
 {
-    return elementCount(dimensions, start_axis, end_axis);
+    int count = 0;
+    count = elementCount(dimensions, start_axis, end_axis);
+    return count;
 }
 
 VkBuffer VkOperand::getVkBuffer()
