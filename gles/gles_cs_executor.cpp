@@ -409,7 +409,7 @@ void GlesCsExecutor::bindOperand(GlesOperand& operand, GLuint boindex)
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, boindex, bo);
 }
 
-void GlesCsExecutor::getCapabilities(Capabilities &cap)
+void GlesCsExecutor::getCapabilities(V1_0::Capabilities &cap)
 {
     cap = {.float32Performance = {.execTime = 0.9f, .powerUsage = 1.1f},
                                  .quantized8Performance = {.execTime = 0.9f, .powerUsage = 1.1f}};

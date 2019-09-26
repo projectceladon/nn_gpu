@@ -397,7 +397,7 @@ bool VkCsExecutor::run(const Request& request)
     return true;
 }
 
-void VkCsExecutor::getCapabilities(Capabilities &cap)
+void VkCsExecutor::getCapabilities(V1_0::Capabilities &cap)
 {
     NN_GPU_CALL();
 

@@ -17,8 +17,8 @@
  * Author: Guo Yejun <yejun.guo@intel.com>
  */
 
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_1_GLES_CS_EXECUTOR_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_1_GLES_CS_EXECUTOR_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_2_GLES_CS_EXECUTOR_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_2_GLES_CS_EXECUTOR_H
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -44,7 +44,7 @@ class GlesCsExecutor : public GpuExecutor
 public:
     static bool initPerProcess();
     static void deinitPerProcess();
-    static void getCapabilities(Capabilities& cap);
+    static void getCapabilities(V1_0::Capabilities& cap);
     static std::vector<bool> getSupportedOperations(const Model& model);
     static bool checkGroupParam(int* localSize, int* groupCount);
 

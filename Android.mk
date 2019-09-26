@@ -14,10 +14,10 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := android.hardware.neuralnetworks@1.1-service-gpgpu
+LOCAL_MODULE := android.hardware.neuralnetworks@1.2-service-gpgpu
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
-LOCAL_INIT_RC := android.hardware.neuralnetworks@1.1-service-gpgpu.rc
+LOCAL_INIT_RC := android.hardware.neuralnetworks@1.2-service-gpgpu.rc
 LOCAL_SRC_FILES := \
 service.cpp \
 device.cpp \
@@ -95,8 +95,17 @@ ifeq ($(TARGET_PRODUCT), icl_presi_kbl)
 LOCAL_CFLAGS += -DTARGET_KBL
 endif
 
+ifeq ($(TARGET_PRODUCT), celadon_tablet)
+LOCAL_CFLAGS += -DTARGET_KBL
+endif
+
 LOCAL_C_INCLUDES := \
-frameworks/ml/nn/common/include
+frameworks/ml/nn/common/include \
+frameworks/ml/nn/runtime/include \
+frameworks/native/libs/nativewindow/include \
+frameworks/native/libs/ui/include \
+frameworks/native/libs/nativebase/include
+
 
 LOCAL_STATIC_LIBRARIES := libneuralnetworks_common
 
@@ -108,7 +117,6 @@ libhardware \
 libhidlbase \
 libhidlmemory \
 libhidltransport \
-libtextclassifier_hash \
 liblog \
 libutils \
 libEGL \
