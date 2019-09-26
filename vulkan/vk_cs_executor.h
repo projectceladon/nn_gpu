@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_1_VK_CS_EXECUTOR_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_1_VK_CS_EXECUTOR_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_2_VK_CS_EXECUTOR_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_2_VK_CS_EXECUTOR_H
 
 #include "gpu_executor.h"
 #include "vk_operand.h"
@@ -97,7 +97,7 @@ class VkCsExecutor : public GpuExecutor
 public:
     static bool initPerProcess();
     static void deinitPerProcess();
-    static void getCapabilities(Capabilities& cap);
+    static void getCapabilities(V1_0::Capabilities& cap);
     static std::vector<bool> getSupportedOperations(const Model& model);
     //static bool checkGroupParam(uint32_t* localSize, uint32_t* groupCount);
 

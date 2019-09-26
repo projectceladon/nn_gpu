@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_0_BASE_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_0_BASE_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_2_BASE_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_2_BASE_H
 
 #include <android/log.h>
 #include <android-base/logging.h>
@@ -8,7 +8,7 @@
 namespace android { \
 namespace hardware { \
 namespace neuralnetworks { \
-namespace V1_1 { \
+namespace V1_2 { \
 namespace implementation {
 
 #define NAME_SPACE_STOP \

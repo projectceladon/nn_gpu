@@ -37,7 +37,7 @@ void ExecutorManager::deinitPerProcess()
     NN_GPU_EXIT();
 }
 
-void ExecutorManager::getCapabilities(Capabilities &cap)
+void ExecutorManager::getCapabilities(V1_0::Capabilities &cap)
 {
     NN_GPU_ENTRY();
     if (type == ET_GLES_CS)

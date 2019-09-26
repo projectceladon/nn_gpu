@@ -760,7 +760,7 @@ bool VkCsExecutor::verifyResult(VkConvSpecializedConst& param,
                     if ((fabs(p_out[offset] - benchmark[offset]) > 0.1 * fabs(benchmark[offset])) ||
                         !((fabs(benchmark[offset]) < 1.e-3) && (fabs(p_out[offset] - benchmark[offset]) < 1.e-4)))
                     {
-                        LOGE("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n",
+                        NN_GPU_DEBUG("CONV_2D: convolution verification failed at (%d, %d, %d, %d), actual: %f, expected: %f\n",
                                 b, h, w, c, p_out[offset], benchmark[offset]);
 
                         delete[] benchmark;

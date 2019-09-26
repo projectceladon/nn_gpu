@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_1_EXECUTOR_MANAGER_H
-#define ANDROID_HARDWARE_NEURALNETWORKS_V1_1_EXECUTOR_MANAGER_H
+#ifndef ANDROID_HARDWARE_NEURALNETWORKS_V1_2_EXECUTOR_MANAGER_H
+#define ANDROID_HARDWARE_NEURALNETWORKS_V1_2_EXECUTOR_MANAGER_H
 
 #include <vector>
 
@@ -12,7 +12,7 @@ class ExecutorManager
 public:
     static bool initPerProcess();
     static void deinitPerProcess();
-    static void getCapabilities(Capabilities& cap);
+    static void getCapabilities(V1_0::Capabilities& cap);
     static std::vector<bool> getSupportedOperations(const Model& model);
     static BaseExecutor* createExecutor(const Model& model);
 private:
