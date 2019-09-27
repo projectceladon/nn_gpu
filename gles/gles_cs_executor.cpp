@@ -411,8 +411,8 @@ void GlesCsExecutor::bindOperand(GlesOperand& operand, GLuint boindex)
 
 void GlesCsExecutor::getCapabilities(V1_0::Capabilities &cap)
 {
-    cap = {.float32Performance = {.execTime = 0.9f, .powerUsage = 1.1f},
-                                 .quantized8Performance = {.execTime = 0.9f, .powerUsage = 1.1f}};
+    cap = {.float32Performance = {.execTime = 0.91f, .powerUsage = 0.91f},
+                                  .quantized8Performance = {.execTime = 0.91f, .powerUsage = 0.91f}};
 }
 
 std::vector<bool> GlesCsExecutor::getSupportedOperations(const Model& model)

@@ -16,8 +16,12 @@ using namespace android::nn;
 
 Return<void> Device::getCapabilities(getCapabilities_cb cb)
 {
-    UNUSED(cb);
     NN_GPU_ENTRY();
+
+    V1_0::Capabilities capabilities;
+    ExecutorManager::getCapabilities(capabilities);
+    cb(ErrorStatus::NONE, capabilities);
+
     NN_GPU_EXIT();
 
     return Void();
