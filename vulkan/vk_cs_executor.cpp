@@ -117,11 +117,11 @@ bool VkCsExecutor::initPerProcess()
     // graphics/compute/present
     // for this sample, we use the very first GPU device found on the system
     uint32_t gpuCount = 0;
+    VkPhysicalDevice tmpGpus[32];
     CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, nullptr));
 
     if (gpuCount > 0)
     {
-        VkPhysicalDevice tmpGpus[gpuCount];
         CALL_VK(vkEnumeratePhysicalDevices(kInstance, &gpuCount, tmpGpus));
         kPhysicalDevice = tmpGpus[0];  // Pick up the first GPU Device
     }
