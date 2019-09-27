@@ -401,8 +401,8 @@ void VkCsExecutor::getCapabilities(V1_0::Capabilities &cap)
 {
     NN_GPU_CALL();
 
-    cap = {.float32Performance = {.execTime = 0.9f, .powerUsage = 1.1f},
-           .quantized8Performance = {.execTime = 0.9f, .powerUsage = 1.1f}};
+    cap = {.float32Performance = {.execTime = 0.91f, .powerUsage = 0.91f},
+           .quantized8Performance = {.execTime = 0.91f, .powerUsage = 0.91f}};
 }
 
 std::vector<bool> VkCsExecutor::getSupportedOperations(const Model& model)
