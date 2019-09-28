@@ -482,5 +482,4 @@ std::string GlesCsExecutor::getOpName(const Operation& operation)
     return "unknown";
 }
 
-/(vendor|system/vendor)/bin/hw/android\.hardware\.neuralnetworks@1\.1-generic-service   u:object_r:hal_neuralnetworks_default_exec:s0
 NAME_SPACE_STOP
