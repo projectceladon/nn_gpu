@@ -315,7 +315,7 @@ bool GlesCsExecutor::run(const Operation& operation, OperationCpuTimer* timer, G
 
 #define SETUP_OP(op)                \
     case OperationType::op:         \
-        LOGD("run operation type with %d", OperationType::op); \
+        NN_GPU_DEBUG("run operation type with %d", OperationType::op); \
         ret = do##op(operation, resource);    \
         break;
 #include "gles_setup_op.hxx"
@@ -482,4 +482,5 @@ std::string GlesCsExecutor::getOpName(const Operation& operation)
     return "unknown";
 }
 
+/(vendor|system/vendor)/bin/hw/android\.hardware\.neuralnetworks@1\.1-generic-service   u:object_r:hal_neuralnetworks_default_exec:s0
 NAME_SPACE_STOP

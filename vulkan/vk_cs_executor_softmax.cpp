@@ -45,8 +45,6 @@ struct SoftmaxParam {
 /* todo: shader is not ready, vkcom softmax shader seems not match with android tensorflow */
 bool VkCsExecutor::doSOFTMAX(const Operation& operation)
 {
-    ALOGD("fei call into %s", __func__);
-
 #define BUFFER_NUM 2
     opBase->initVulkanThing(BUFFER_NUM);
 
@@ -97,7 +95,6 @@ bool VkCsExecutor::doSOFTMAX(const Operation& operation)
     opBase->runCommandBuffer();
 
     output.dump();
-    ALOGD("fei exit %s", __func__);
 
     return true;
 }

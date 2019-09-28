@@ -80,7 +80,6 @@ bool VkOperand::setArg(const RequestArgument& from)
             *(reinterpret_cast<float *>(userptr)+6),
             *(reinterpret_cast<float *>(userptr)+7));
 
-        //ALOGD("fei userptr is 0x%x, 0x%x, 0x%x, 0x%x", *userptr, *(userptr + 1), *(userptr + 2), *(userptr + 3));
         memInfo = memMgr.createRequestMemoryInfo(userptr, length);
         poolInfo->addMemInfo(memInfo);
 

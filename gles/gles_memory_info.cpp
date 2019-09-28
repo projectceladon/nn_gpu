@@ -31,7 +31,7 @@ void GlesMemoryInfo::dump()
     const float* p = (float*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, 16, GL_MAP_READ_BIT);
     for (size_t i = 0; i < 15; ++i)
     {
-        LOGD("dumpped out buffer content: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
+        NN_GPU_DEBUG("dumpped out buffer content: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",
             p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
     }
 
